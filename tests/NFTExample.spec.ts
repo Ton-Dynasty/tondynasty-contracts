@@ -3,6 +3,9 @@ import { Cell, beginCell, toNano } from 'ton-core';
 import { ExampleNFTCollection, RoyaltyParams } from '../wrappers/NFTExample';
 import '@ton-community/test-utils';
 
+const OFFCHAIN_TAG = 0x01;
+const BASE_URL = 'https://s.getgems.io/nft-staging/c/628f6ab8077060a7a8d52d63/';
+
 describe('NFTExample', () => {
     let blockchain: Blockchain;
     let deployer: SandboxContract<TreasuryContract>;
@@ -13,7 +16,7 @@ describe('NFTExample', () => {
     beforeEach(async () => {
         blockchain = await Blockchain.create();
         deployer = await blockchain.treasury('deployer');
-        collectionContent = beginCell().storeStringRefTail('Hello').endCell();
+        const collectionContent = beginCell().storeInt(OFFCHAIN_TAG, 8).storeStringRefTail(BASE_URL).endCell();
         royaltyParams = {
             $$type: 'RoyaltyParams',
             numerator: 4n,
@@ -47,8 +50,16 @@ describe('NFTExample', () => {
         // blockchain and nFTCollection are ready to use
     });
 
-    it('should mint NFT', async () => {
-        const newOwner = await blockchain.treasury('newOwner');
+    it('Should get collection metadata successfully', async () => {
+        const collectionData = await nftCollection.getGetCollectionData();
+        const parser = collectionData.collection_content.beginParse();
+        const offchainTag = parser.loadUint(8).toString();
+        const metadata = parser.loadStringTail().toString();
+        expect(offchainTag).toEqual('1');
+        expect(metadata).toEqual('https://s.getgems.io/nft-staging/c/628f6ab8077060a7a8d52d63/meta.json');
+    });
+
+    it('should mint NFT successfully', async () => {
         const before_index = (await nftCollection.getGetCollectionData()).next_item_index;
 
         const mintResult = await nftCollection.send(
@@ -66,6 +77,7 @@ describe('NFTExample', () => {
             success: true,
         });
 
+        // Check Index
         const after_index = (await nftCollection.getGetCollectionData()).next_item_index;
         expect(after_index).toEqual(before_index + 1n);
     });

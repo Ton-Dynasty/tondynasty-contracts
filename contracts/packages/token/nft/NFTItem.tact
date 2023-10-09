@@ -158,15 +158,18 @@ trait NFTItemStandard {
 
     // @dev  _get_nft_data returns the NFT data in the format that complies with TEP-64
     virtual inline fun _get_nft_data(): NftData {
-        let b: StringBuilder = beginString();
-        let idvStr: String = self.individual_content.asSlice().asString();
-        b.append(idvStr);
+        let builder: StringBuilder = beginString();
+        let collectionData: String = self.individual_content.asSlice().asString();
+        builder.append(collectionData);
+        builder.append(self.index.toString());
+        builder.append(".json");
+
         return NftData {
             is_initialized: self.is_initialized, 
             index: self.index, 
             collection_address: self.collection_address, 
             owner_address: self.owner,
-            individual_content: b.toCell()
+            individual_content: builder.toCell()
         };
     }
 

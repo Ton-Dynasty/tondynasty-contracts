@@ -26,13 +26,22 @@ trait NFTCollectionStandard {
     // @dev _get_nft_content gets the serial number of the NFT item of this collection and the individual content of this NFT item.
     //      returns the full content of the NFT item in format that complies with standard TEP-64.
     // @note one MUST override this function to provide full NFT item content
-    abstract inline fun _get_nft_content(index: Int, individual_content: Cell): Cell;
+    virtual inline fun _get_nft_content(index: Int, individual_content: Cell): Cell {
+        let builder: StringBuilder = beginString();
+        let idvStr: String = individual_content.asSlice().asString();
+        builder.append(idvStr);
+        return builder.toCell();
+    }
 
     // @dev get_collection_data returns nft collection data
     virtual inline fun _get_collection_data(): CollectionData {
+        let builder: StringBuilder = beginString();
+        let urlPrefix: String = self.collection_content.asSlice().asString();
+        builder.append(urlPrefix);
+        builder.append("meta.json");
         return CollectionData {
             next_item_index: self.next_item_index,
-            collection_content: self.collection_content,
+            collection_content: builder.toCell(),
             owner_address: self.owner_address
         };
     }
