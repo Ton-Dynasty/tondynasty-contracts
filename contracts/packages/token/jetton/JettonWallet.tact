@@ -18,6 +18,9 @@ message(0x0f8a7ea5) JettonTransfer {
 
 message(0x7362d09c) JettonTransferNotification {
     query_id: Int as uint64;        // arbitrary request number
+    amount: Int as coins;           // amount of jettons to transfer
+    sender: Address;                // address of the sender of the jettons
+    forward_payload: Cell;         // optional custom payload
 }
 
 message(0x595f07bc) JettonBurn {
@@ -82,6 +85,11 @@ trait JettonWallet {
     }
 
     receive(msg: JettonInternalTransfer) {
+        let ctx: Context = context();
+        self._check_sender(ctx, msg);
+        self._send_notification(ctx, msg);
+        self._check_cash_back(ctx, msg);
+        self.balance = self.balance + msg.amount;
     }
 
 
@@ -89,6 +97,47 @@ trait JettonWallet {
     //             Internal functions             //
     //********************************************//
     abstract inline fun _get_jetton_wallet_init(): StateInit;
+
+    abstract inline fun _calculate_jetton_wallet_init(owner_address: Address): StateInit;
+
+    virtual inline fun _check_sender(ctx: Context, msg: JettonInternalTransfer) {
+        if(ctx.sender != self.jetton_master){
+            let init: StateInit = self._calculate_jetton_wallet_init(msg.from);
+            require(ctx.sender == contractAddress(init), "JettonWallet: Only Jetton master or Jetton wallet can call this function");
+        }
+    }
+
+    virtual inline fun _send_notification(ctx: Context, msg: JettonInternalTransfer) {
+        send(SendParameters{
+            to: self.owner,
+            value: 0,
+            mode: msg.forward_ton_amount,
+            bounce: true,
+            body: JettonTransferNotification{
+                query_id: msg.query_id,
+                amount: msg.amount,
+                sender: msg.from,
+                forward_payload: msg.forward_payload
+            }.toCell()
+        });
+    }
+
+    virtual inline fun _check_cash_back(ctx: Context, msg: JettonInternalTransfer){
+        let before_balance: Int = self.balance - ctx.value;
+        let storge_fee: Int = self.minTonsForStorage - min(before_balance, self.minTonsForStorage);
+        let cash_back: Int = ctx.value - storge_fee - self.gasConsumption;
+        if((msg.response_address != newAddress(0, 0)) && (cash_back > 0)){
+            send(SendParameters{
+                to: msg.response_address,
+                value: cash_back,
+                bounce: false,
+                body: JettonExcesses{
+                    query_id: msg.query_id
+                }.toCell(),
+                mode: SendIgnoreErrors
+            });
+        }
+    }
 
     virtual inline fun _validate_burn(ctx: Context, msg: JettonBurn) {
         require(ctx.sender == self.owner, "JettonWalletBurnable: Only owner can burn tokens");
