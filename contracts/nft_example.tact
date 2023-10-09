@@ -23,7 +23,7 @@ contract ExampleNFTCollection with NFTCollectionStandard, NFTRoyaltyStandard, De
         let nftItemInit: StateInit = self._get_nft_item_state_init(self.next_item_index);
         send(SendParameters{
                 to: contractAddress(nftItemInit), 
-                value: self.EstimateRestValue(ctx), 
+                value: self.estimate_rest_value(ctx), 
                 bounce: false,
                 mode: SendIgnoreErrors,
                 body: Transfer {
