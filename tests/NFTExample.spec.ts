@@ -2,7 +2,6 @@ import { Blockchain, SandboxContract, TreasuryContract } from '@ton-community/sa
 import { Cell, beginCell, toNano } from 'ton-core';
 import { ExampleNFTCollection, RoyaltyParams } from '../wrappers/NFTExample';
 import '@ton-community/test-utils';
-import { ExampleNFTItem } from '../build/NFTExample/tact_ExampleNFTItem';
 
 describe('NFTExample', () => {
     let blockchain: Blockchain;
@@ -50,7 +49,7 @@ describe('NFTExample', () => {
 
     it('should mint NFT', async () => {
         const newOwner = await blockchain.treasury('newOwner');
-        const customPayload = beginCell().storeStringRefTail('World').endCell();
+        const before_index = (await nftCollection.getGetCollectionData()).next_item_index;
 
         const mintResult = await nftCollection.send(
             deployer.getSender(),
@@ -67,8 +66,7 @@ describe('NFTExample', () => {
             success: true,
         });
 
-        const nftItem = blockchain.openContract(
-            await ExampleNFTItem.fromInit(nftCollection.address, 0n, newOwner.address, beginCell().endCell())
-        );
+        const after_index = (await nftCollection.getGetCollectionData()).next_item_index;
+        expect(after_index).toEqual(before_index + 1n);
     });
 });
