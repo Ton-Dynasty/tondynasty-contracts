@@ -5,7 +5,7 @@
     [Tact Template](https://github.com/howardpen9/jetton-implementation-in-tact/blob/main/sources/contract.tact)
 */
 
-message(0x0f8a7ea5) Transfer {
+message(0x0f8a7ea5) JettonTransfer {
     query_id: Int as uint64;          // arbitrary request number
     amount: Int as coins;             // amount of jettons to transfer
     destination: Address;             // address of the new owner of the jettons
@@ -15,22 +15,22 @@ message(0x0f8a7ea5) Transfer {
     forward_payload: Cell;            // optional custom data that should be sent to the destination address.
 }
 
-message(0x7362d09c) TransferNotification {
+message(0x7362d09c) JettonTransferNotification {
     query_id: Int as uint64;        // arbitrary request number
 }
 
-message(0x595f07bc) Burn {
+message(0x595f07bc) JettonBurn {
     query_id: Int as uint64;        // arbitrary request number
     amount: Int as coins;           // amount of jettons to burn
     response_destination: Address;  // address where to send a response with confirmation of a successful burn and the rest of the incoming message coins.
     custom_payload: Cell?;          // optional custom payload
 }
 
-message(0xd53276db) Excesses {
+message(0xd53276db) JettonExcesses {
     query_id: Int as uint64;        // arbitrary request number
 }
 
-message(0x178d4519) InternalTransfer {
+message(0x178d4519) JettonInternalTransfer {
     query_id: Int as uint64;          // arbitrary request number
     amount: Int as coins;             // amount of jettons to transfer
     response_address: Address;        // address where to send a response with confirmation of a successful transfer and the rest of the incoming message coins.
@@ -38,19 +38,11 @@ message(0x178d4519) InternalTransfer {
     forward_payload: Cell;            // optional custom data that should be sent to the destination address.
 }
 
-message(0x7bdd97de) BurnNotification {
+message(0x7bdd97de) JettonBurnNotification {
     query_id: Int as uint64;          // arbitrary request number
     amount: Int as coins;             // amount of jettons to burn
     sender: Address;                  // address of the sender of the jettons
     response_destination: Address;    // address where to send a response with confirmation of a successful burn and the rest of the incoming message coins.
-}
-
-struct JettonData {
-    total_supply: Int as coins;          // the total number of issues jettons
-    mintable: Bool;             // flag which indicates whether number of jettons can increase admin_address
-    admin_address: Address;     // address of smart-contrac which control Jetton
-    jetton_content: Cell;       // data in accordance to Token Data Standard #64
-    jetton_wallet_code: Cell;   // code of wallet for that jetton
 }
 
 struct WalletData {
@@ -62,7 +54,7 @@ struct WalletData {
 
 
 trait JettonWallet {
-    balance: Int as uint256;
+    balance: Int;
     owner: Address;
     jetton_master: Address;
 
@@ -71,21 +63,20 @@ trait JettonWallet {
     //********************************************//
 
 
-    receive(msg: Transfer) {
+    receive(msg: JettonTransfer) {
     }
 
-    receive(msg: Burn) {
+    receive(msg: JettonBurn) {
     }
 
-    receive(msg: InternalTransfer) {
+    receive(msg: JettonInternalTransfer) {
     }
 
 
     //********************************************//
     //             Internal functions             //
     //********************************************//
-
-    abstract inline fun _get_jetton_wallet_init(owner_address: Address): StateInit;
+    abstract inline fun _get_jetton_wallet_code(): Cell;
 
     //*********************************//
     //             Getters             //
@@ -96,33 +87,7 @@ trait JettonWallet {
             balance: self.balance,
             owner: self.owner,
             jetton: self.jetton_master,
-            jetton_wallet_code: 
-        }
-    }
-}
-
-
-
-trait JettonMaster {
-    total_supply: Int as coins;
-    mintable: Bool;
-    owner: Address;
-    jetton_content: Cell;
-
-    abstract inline fun _get_jetton_wallet_init(owner_address: Address): StateInit;
-
-    get fun get_jetton_data(): JettonData {
-        return JettonData{
-            total_supply: self.total_supply,
-            mintable: self.mintable,
-            admin_address: self.owner,
-            jetton_content: self.jetton_content,
-            jetton_wallet_code: self.getJettonWalletInit(myAddress()).code
-        }
-    }
-
-    get fun get_wallet_address(owner_address): Address {
-        let initCode: StateInit = self._get_jetton_wallet_init(owner_address);
-        return contractAddress(initCode);
+            jetton_wallet_code: self._get_jetton_wallet_code()
+        };
     }
 }
