@@ -24,6 +24,7 @@ contract ExampleNFTCollection with NFTCollectionStandard, NFTRoyaltyStandard {
         self.royalty_params = royalty_params;
     }
 
+    // @dev Mint is not the standard function of NFTCollection, so we need to define it by ourselves
     receive(msg: Mint) {
         let ctx: Context = context();
         require(self.owner_address == ctx.sender, "NFTCollectionMintable: only owner can mint");
