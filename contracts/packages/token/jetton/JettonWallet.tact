@@ -47,7 +47,7 @@ message(0x7bdd97de) JettonBurnNotification {
 }
 
 struct WalletData {
-    balance: Int as uint256;    // amount of jettons on wallet
+    balance: Int as coins;    // amount of jettons on wallet
     owner: Address;             // address of wallet owner;
     jetton: Address;            // address of Jetton master-address
     jetton_wallet_code: Cell;   // with code of this wallet
