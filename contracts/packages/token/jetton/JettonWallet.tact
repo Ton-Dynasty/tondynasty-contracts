@@ -59,6 +59,8 @@ trait JettonWallet {
     balance: Int;
     owner: Address;
     jetton_master: Address;
+    virtual const gasConsumption: Int = ton("0.05");
+    virtual const minTonsForStorage: Int = ton("0.05");
 
     //********************************************//
     //                  Messages                  //
@@ -66,6 +68,11 @@ trait JettonWallet {
 
 
     receive(msg: JettonTransfer) {
+        let ctx: Context = context();
+        self._validate_transfer(ctx, msg);
+        self._estimate_rest_value(ctx, msg);
+        self._transfer_jetton(ctx, msg);
+        self.balance = self.balance - msg.amount;
     }
 
     receive(msg: JettonBurn) {
@@ -104,6 +111,40 @@ trait JettonWallet {
         });
     }
 
+    virtual inline fun _validate_transfer(ctx: Context, msg: JettonTransfer) {
+        require(ctx.sender == self.owner, "Only owner can call this function");
+        require(self.balance >= msg.amount, "Not enough jettons in wallet");
+    }
+
+    inline fun _estimate_rest_value(ctx: Context, msg: JettonTransfer) {
+        let remain: Int = ctx.value;
+        let fwd_count: Int = 1;
+        if (msg.forward_ton_amount > 0) {
+            fwd_count = 2;
+        }
+        require(remain > (fwd_count * ctx.readForwardFee() + 2 * (self.gasConsumption + self.minTonsForStorage)), "Not enough funds to transfer");
+    }
+
+    virtual inline fun _transfer_jetton(ctx: Context, msg: JettonTransfer) {
+        let init: StateInit = self._get_jetton_wallet_init();
+        let receiver: Address = contractAddress(init);
+        send(SendParameters{
+            to: receiver,
+            value: 0,
+            bounce: true,
+            body: JettonInternalTransfer{
+                query_id: msg.query_id,
+                amount: msg.amount,
+                response_address: msg.response_destination,
+                from: self.owner,
+                forward_ton_amount: msg.forward_ton_amount,
+                forward_payload: msg.forward_payload
+            }.toCell(),
+            code: init.code,
+            data: init.data
+        });
+    }
+
     //*********************************//
     //             Getters             //
     //*********************************//
@@ -115,5 +156,5 @@ trait JettonWallet {
             jetton: self.jetton_master,
             jetton_wallet_code: self._get_jetton_wallet_init().code
         };
-    }
+    }    
 }
