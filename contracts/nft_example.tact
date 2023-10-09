@@ -33,7 +33,7 @@ contract ExampleNFTCollection with NFTCollectionStandard, NFTRoyaltyStandard, De
                 body: Transfer {
                     query_id: 0,
                     new_owner: ctx.sender,
-                    response_destination: self.owner_address,
+                    response_destination: ctx.sender,
                     custom_payload: rndContentBuilder.toCell(),
                     forward_amount: 0,
                     forward_payload: emptyCell()
