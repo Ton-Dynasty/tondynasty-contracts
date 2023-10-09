@@ -23,17 +23,17 @@ contract ExampleJettonMaster with JettonMaster, Deployable {
     owner: Address;
     jetton_content: Cell;
 
-    receive("Mint:100") {
+    receive("Mint:1") {
         let ctx: Context = context();
         let msg: JettonMint = JettonMint{
             receiver: ctx.sender,
-            amount: 100
+            amount: ton("1")
         };
-        self._mint_check(ctx, msg);
+        self._mint_validate(ctx, msg);
         self._mint(ctx, msg);
     }
 
-    override inline fun _mint_check(ctx: Context, msg: JettonMint) {
+    override inline fun _mint_validate(ctx: Context, msg: JettonMint) {
         require(self.mintable, "JettonMaster: Jetton is not mintable");
     }
 

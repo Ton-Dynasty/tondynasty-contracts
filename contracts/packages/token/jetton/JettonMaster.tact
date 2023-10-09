@@ -34,7 +34,7 @@ trait JettonMaster {
 
     receive(msg: JettonMint) {
         let ctx: Context = context();
-        self._mint_check(ctx, msg);
+        self._mint_validate(ctx, msg);
         self._mint(ctx, msg);
     }
 
@@ -46,7 +46,7 @@ trait JettonMaster {
     // @note one MUST override this function in inherited contract
     abstract inline fun _calculate_jetton_wallet_init(owner_address: Address): StateInit;
 
-    virtual inline fun _mint_check(ctx: Context, msg: JettonMint) {
+    virtual inline fun _mint_validate(ctx: Context, msg: JettonMint) {
         require(ctx.sender == self.owner, "JettonMaster: Sender is not a Jetton owner");
         require(self.mintable, "JettonMaster: Jetton is not mintable");
     }

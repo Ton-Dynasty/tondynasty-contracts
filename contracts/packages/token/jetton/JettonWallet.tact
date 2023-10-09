@@ -72,24 +72,27 @@ trait JettonWallet {
 
     receive(msg: JettonTransfer) {
         let ctx: Context = context();
-        self._validate_transfer(ctx, msg);
-        self._estimate_rest_value(ctx, msg);
+        self._transfer_validate(ctx, msg);
+        self._transfer_estimate_remain_value(ctx, msg);
         self._transfer_jetton(ctx, msg);
         self.balance = self.balance - msg.amount;
     }
 
     receive(msg: JettonBurn) {
         let ctx: Context = context();
-        self._validate_burn(ctx, msg);
+        self._burn_validate(ctx, msg);
         self._burn_tokens(ctx, msg);
     }
 
     receive(msg: JettonInternalTransfer) {
         let ctx: Context = context();
-        self._check_sender(ctx, msg);
-        self._send_notification(ctx, msg);
-        self._check_cash_back(ctx, msg);
+        self._internal_transfer_validate(ctx, msg);
+        let remain: Int = self._internal_transfer_estimate_remain_value(ctx, msg);
         self.balance = self.balance + msg.amount;
+        if (msg.forward_ton_amount > 0){
+            self._internal_transfer_notification(ctx, msg);
+        }
+        self._internal_transfer_excesses(ctx, msg, remain);
     }
 
     bounced(src: bounced<JettonInternalTransfer>) {
@@ -107,36 +110,42 @@ trait JettonWallet {
 
     abstract inline fun _calculate_jetton_wallet_init(owner_address: Address): StateInit;
 
-    virtual inline fun _check_sender(ctx: Context, msg: JettonInternalTransfer) {
+    virtual inline fun _internal_transfer_validate(ctx: Context, msg: JettonInternalTransfer) {
         if(ctx.sender != self.jetton_master){
             let init: StateInit = self._calculate_jetton_wallet_init(msg.from);
             require(ctx.sender == contractAddress(init), "JettonWallet: Only Jetton master or Jetton wallet can call this function");
         }
     }
 
-    virtual inline fun _send_notification(ctx: Context, msg: JettonInternalTransfer) {
-        send(SendParameters{
-            to: self.owner,
-            value: 0,
-            mode: msg.forward_ton_amount,
-            bounce: true,
-            body: JettonTransferNotification{
-                query_id: msg.query_id,
-                amount: msg.amount,
-                sender: msg.from,
-                forward_payload: msg.forward_payload
-            }.toCell()
-        });
+    virtual inline fun _internal_transfer_estimate_remain_value(ctx: Context, msg: JettonInternalTransfer): Int {
+        let remain: Int = ctx.value;    
+        let tonBalanceBeforeMsg: Int = myBalance() - remain;
+        let storage_fee: Int =  self.minTonsForStorage - min(tonBalanceBeforeMsg, self.minTonsForStorage);
+        return remain - (storage_fee + self.gasConsumption) - (ctx.readForwardFee() + msg.forward_ton_amount);
     }
 
-    virtual inline fun _check_cash_back(ctx: Context, msg: JettonInternalTransfer){
-        let before_balance: Int = self.balance - ctx.value;
-        let storge_fee: Int = self.minTonsForStorage - min(before_balance, self.minTonsForStorage);
-        let cash_back: Int = ctx.value - storge_fee - self.gasConsumption;
-        if((msg.response_address != newAddress(0, 0)) && (cash_back > 0)){
+    virtual inline fun _internal_transfer_notification(ctx: Context, msg: JettonInternalTransfer) {
+        if (msg.forward_ton_amount > 0) {
+            send(SendParameters{
+                to: self.owner,
+                value: 0,
+                mode: msg.forward_ton_amount,
+                bounce: true,
+                body: JettonTransferNotification{
+                    query_id: msg.query_id,
+                    amount: msg.amount,
+                    sender: msg.from,
+                    forward_payload: msg.forward_payload
+                }.toCell()
+            });
+        }
+    }
+
+    virtual inline fun _internal_transfer_excesses(ctx: Context, msg: JettonInternalTransfer, remain: Int){
+        if((msg.response_address != newAddress(0, 0)) && remain > 0){
             send(SendParameters{
                 to: msg.response_address,
-                value: cash_back,
+                value: remain,
                 bounce: false,
                 body: JettonExcesses{
                     query_id: msg.query_id
@@ -145,8 +154,8 @@ trait JettonWallet {
             });
         }
     }
-
-    virtual inline fun _validate_burn(ctx: Context, msg: JettonBurn) {
+    
+    virtual inline fun _burn_validate(ctx: Context, msg: JettonBurn) {
         require(ctx.sender == self.owner, "JettonWalletBurnable: Only owner can burn tokens");
     }
 
@@ -167,12 +176,12 @@ trait JettonWallet {
         });
     }
 
-    virtual inline fun _validate_transfer(ctx: Context, msg: JettonTransfer) {
+    virtual inline fun _transfer_validate(ctx: Context, msg: JettonTransfer) {
         require(ctx.sender == self.owner, "Only owner can call this function");
         require(self.balance >= msg.amount, "Not enough jettons in wallet");
     }
 
-    inline fun _estimate_rest_value(ctx: Context, msg: JettonTransfer) {
+    virtual inline fun _transfer_estimate_remain_value(ctx: Context, msg: JettonTransfer) {
         let remain: Int = ctx.value;
         let fwd_count: Int = 1;
         if (msg.forward_ton_amount > 0) {
