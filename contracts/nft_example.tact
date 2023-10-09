@@ -1,22 +1,15 @@
+import "@stdlib/deploy";
 import "./packages/token/nft/NFTCollection";
 import "./packages/token/nft/extensions/NFTRoyalty";
 import "./packages/token/nft/NFTItem";
 
-message Mint {
-    query_id: Int as uint64;      // arbitrary request number
-    new_owner: Address?;          // if new_owner is zero address or empty, then NFT item is minted to the sender
-    custom_payload: Cell?;        // custom payload for NFT item contract
-    forward_amount: Int as coins; // amount to be forwarded to NFT item contract
-    forward_payload: Cell;        // payload for NFT item contract 
-}
-
-contract ExampleNFTCollection with NFTCollectionStandard, NFTRoyaltyStandard {
+contract ExampleNFTCollection with NFTCollectionStandard, NFTRoyaltyStandard, Deployable {
     next_item_index: Int as uint32 = 0; // if next_item_index is not -1, means sequential minting is enabled. We want a sequential minting in this example so we set it to uint32.
     collection_content: Cell;           // collection_content may be the prefix of individual_content
     owner_address: Address;             // owner_address is the address of the owner of the collection
     royalty_params: RoyaltyParams;      // royalty_params is the params of royalty
     
-    content_map: map<Int, Cell>;        // content_map is a customize map of index to individual_content
+    content_map: map<Int as uint32, Cell>;        // content_map is a customize map of index to individual_content
 
     init(owner_address: Address, collection_content: Cell, royalty_params: RoyaltyParams) {
         self.owner_address = owner_address;
@@ -25,32 +18,30 @@ contract ExampleNFTCollection with NFTCollectionStandard, NFTRoyaltyStandard {
     }
 
     // @dev Mint is not the standard function of NFTCollection, so we need to define it by ourselves
-    receive(msg: Mint) {
+    receive("Mint") {
         let ctx: Context = context();
         require(self.owner_address == ctx.sender, "NFTCollectionMintable: only owner can mint");
 
         let nftItemInit: StateInit = self._get_nft_item_state_init(self.next_item_index);
-        let receiver: Address = ctx.sender;
-        if (msg.new_owner != null){
-            receiver = msg.new_owner!!;
-        }
+        let rndContentBuilder: StringBuilder = beginString();
+        rndContentBuilder.append(randomInt().toString());
         send(SendParameters{
                 to: contractAddress(nftItemInit), 
                 value: 0, 
                 bounce: false,
                 mode: SendIgnoreErrors,
                 body: Transfer {
-                    query_id: msg.query_id,
+                    query_id: 0,
                     new_owner: ctx.sender,
                     response_destination: self.owner_address,
-                    custom_payload: msg.custom_payload,
-                    forward_amount: msg.forward_amount,
-                    forward_payload: msg.forward_payload
+                    custom_payload: rndContentBuilder.toCell(),
+                    forward_amount: 0,
+                    forward_payload: emptyCell()
                 }.toCell(),
                 code: nftItemInit.code,
                 data: nftItemInit.data
             });
-        self.content_map.set(self.next_item_index, msg.custom_payload);
+        self.content_map.set(self.next_item_index, rndContentBuilder.toCell());
         self.next_item_index = self.next_item_index + 1;
     }
 
@@ -102,6 +93,11 @@ contract ExampleNFTItem with NFTItemStandard {
             mode:  SendIgnoreErrors + SendRemainingValue,
             body: Excesses { query_id: msg.query_id }.toCell()
         });
+    }
+
+    // @dev getter function for testing purpose
+    get fun get_is_initialized(): Bool {
+        return self.is_initialized;
     }
 
 }

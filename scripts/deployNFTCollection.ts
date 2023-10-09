@@ -1,9 +1,20 @@
-import { toNano } from 'ton-core';
-import { NFTCollection } from '../wrappers/NFTExample';
+import { beginCell, toNano } from 'ton-core';
+import { ExampleNFTCollection, RoyaltyParams } from '../wrappers/NFTExample';
 import { NetworkProvider } from '@ton-community/blueprint';
 
 export async function run(provider: NetworkProvider) {
-    const nFTCollection = provider.open(await NFTCollection.fromInit());
+    const deployer = provider.sender();
+    console.log('Deploying contract with deployer address', deployer.address);
+    const initCollectionContent = beginCell().endCell();
+    const royaltyParams: RoyaltyParams = {
+        $$type: 'RoyaltyParams',
+        numerator: 1n,
+        denominator: 100n,
+        destination: deployer.address!,
+    };
+    const nFTCollection = provider.open(
+        await ExampleNFTCollection.fromInit(deployer.address!, initCollectionContent, royaltyParams)
+    );
 
     await nFTCollection.send(
         provider.sender(),
@@ -17,6 +28,4 @@ export async function run(provider: NetworkProvider) {
     );
 
     await provider.waitForDeploy(nFTCollection.address);
-
-    // run methods on `nFTCollection`
 }
