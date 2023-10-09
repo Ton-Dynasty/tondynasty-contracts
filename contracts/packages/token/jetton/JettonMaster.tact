@@ -47,8 +47,8 @@ trait JettonMaster {
                 value: 0,
                 bounce: false,
                 mode: SendRemainingValue + SendIgnoreErrors,
-                body: TokenExcesses{ queryId: msg.queryId }.toCell()
-            })
+                body: JettonExcesses{ queryId: msg.queryId }.toCell()
+            });
         }
     }
 
