@@ -19,7 +19,7 @@ trait NFTCollectionStandard {
     //             Internal functions             //
     //********************************************//
 
-    // @dev calculate_nfi_item_state_init calculates init code for NFT item contract by item index
+    // @dev _get_nft_item_state_init calculates init code for NFT item contract by item index
     // @note one MUST override this function to provide custom NFT item initCode
     abstract inline fun _get_nft_item_state_init(index: Int): StateInit;
 

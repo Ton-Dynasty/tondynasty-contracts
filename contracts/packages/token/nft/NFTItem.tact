@@ -174,7 +174,7 @@ trait NFTItemStandard {
     //*********************************//
     //             Getters             //
     //*********************************//
-    virtual get fun get_nft_data(): NftData {
+    get fun get_nft_data(): NftData {
         return self._get_nft_data();
     }
 }
