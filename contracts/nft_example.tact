@@ -4,7 +4,7 @@ import "./packages/token/nft/extensions/NFTRoyalty";
 import "./packages/token/nft/NFTItem";
 import "./packages/utils/GasEstimate";
 
-contract ExampleNFTCollection with NFTCollectionStandard, NFTRoyaltyStandard, Deployable, Estimatable {
+contract ExampleNFTCollection with NFTCollectionStandard, NFTRoyaltyStandard, Estimatable, Deployable {
     next_item_index: Int as uint32 = 0; // if next_item_index is not -1, means sequential minting is enabled. We want a sequential minting in this example so we set it to uint32.
     collection_content: Cell;           // collection_content may be the prefix of individual_content
     owner_address: Address;             // owner_address is the address of the owner of the collection
