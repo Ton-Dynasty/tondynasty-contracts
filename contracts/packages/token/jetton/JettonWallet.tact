@@ -35,6 +35,7 @@ message(0x178d4519) JettonInternalTransfer {
     query_id: Int as uint64;          // arbitrary request number
     amount: Int as coins;             // amount of jettons to transfer
     response_address: Address;        // address where to send a response with confirmation of a successful transfer and the rest of the incoming message coins.
+    from: Address;                    // address of the sender of the jettons 
     forward_ton_amount: Int as coins; // the amount of nanotons to be sent to the destination address.
     forward_payload: Cell;            // optional custom data that should be sent to the destination address.
 }
@@ -68,6 +69,9 @@ trait JettonWallet {
     }
 
     receive(msg: JettonBurn) {
+        let ctx: Context = context();
+        self._validate_burn(ctx, msg);
+        self._burn_tokens(ctx, msg);
     }
 
     receive(msg: JettonInternalTransfer) {
@@ -78,6 +82,27 @@ trait JettonWallet {
     //             Internal functions             //
     //********************************************//
     abstract inline fun _get_jetton_wallet_init(): StateInit;
+
+    virtual inline fun _validate_burn(ctx: Context, msg: JettonBurn) {
+        require(ctx.sender == self.owner, "JettonWalletBurnable: Only owner can burn tokens");
+    }
+
+    virtual inline fun _burn_tokens(ctx: Context, msg: JettonBurn) {
+        self.balance = self.balance - msg.amount;
+        require(self.balance >= 0, "JettonWalletBurnable: Not enough balance to burn tokens");
+        send(SendParameters{
+            to: self.jetton_master,
+            value: 0,
+            mode: SendRemainingValue,
+            bounce: true,
+            body: JettonBurnNotification{
+                query_id: msg.query_id,
+                amount: msg.amount,
+                sender: self.owner,
+                response_destination: msg.response_destination
+            }.toCell()
+        });
+    }
 
     //*********************************//
     //             Getters             //
