@@ -16,8 +16,8 @@ contract NFTFractionWallet with JettonWallet {
         self.jetton_master = jetton_master;
     }
 
-    override inline fun _get_jetton_wallet_code(): Cell {
-        return initOf NFTFractionWallet(self.owner, self.jetton_master).code;
+    override inline fun _get_jetton_wallet_init(): StateInit {
+        return initOf NFTFractionWallet(self.owner, self.jetton_master);
     }
 }
 

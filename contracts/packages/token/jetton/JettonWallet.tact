@@ -76,7 +76,7 @@ trait JettonWallet {
     //********************************************//
     //             Internal functions             //
     //********************************************//
-    abstract inline fun _get_jetton_wallet_code(): Cell;
+    abstract inline fun _get_jetton_wallet_init(): StateInit;
 
     //*********************************//
     //             Getters             //
@@ -87,7 +87,7 @@ trait JettonWallet {
             balance: self.balance,
             owner: self.owner,
             jetton: self.jetton_master,
-            jetton_wallet_code: self._get_jetton_wallet_code()
+            jetton_wallet_code: self._get_jetton_wallet_init().code
         };
     }
 }
