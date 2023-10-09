@@ -507,4 +507,8 @@ describe('NFTAuctionExample', () => {
             success: true,
         });
     });
+
+    // TODO: 1. Test ReviseSetUpAuction with reservePrice and buyNowPrice
+    // TODO: 2. Test EndAuction
+    // TODO: 3. Error test -> increase coverage
 });
