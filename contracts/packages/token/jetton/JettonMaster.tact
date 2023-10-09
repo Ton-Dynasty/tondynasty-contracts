@@ -1,7 +1,7 @@
 /*
 
 */
-
+import "./JettonWallet";
 
 struct JettonData {
     total_supply: Int as coins; // the total number of issues jettons
@@ -18,8 +18,27 @@ trait JettonMaster {
     owner: Address;
     jetton_content: Cell;
 
+    //********************************************//
+    //                  Messages                  //
+    //********************************************//
+    receive(msg: JettonBurnNotification) {
+
+    }
+
+
+    //********************************************//
+    //             Internal functions             //
+    //********************************************//
+
+    // @dev  _get_jetton_wallet_init retrieve init code of a jetton wallet
+    // @note one MUST override this function in inherited contract
     abstract inline fun _get_jetton_wallet_init(owner_address: Address): StateInit;
 
+    //*********************************//
+    //             Getters             //
+    //*********************************//
+
+    // @dev get_jetton_data retrieve information of this jetton
     get fun get_jetton_data(): JettonData {
         return JettonData{
             total_supply: self.total_supply,
@@ -30,6 +49,7 @@ trait JettonMaster {
         };
     }
 
+    // @dev get_wallet_address call _get_jetton_wallet_init and return address of wallet
     get fun get_wallet_address(owner_address: Address): Address {
         let initCode: StateInit = self._get_jetton_wallet_init(owner_address);
         return contractAddress(initCode);
