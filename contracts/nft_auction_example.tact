@@ -21,7 +21,7 @@ contract ExampleNFTAuctionMarket with Deployable, NFTAuctionMarketStandard {
     }
 }
 
-contract ExampleNFTAuction with Deployable, NFTAuctionStandard {
+contract ExampleNFTAuction with NFTAuctionStandard {
     owner: Address;
     nftAddress: Address;
     auctionInfo: AuctionInfo;
