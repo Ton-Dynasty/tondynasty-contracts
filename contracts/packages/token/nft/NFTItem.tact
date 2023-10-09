@@ -111,6 +111,8 @@ trait NFTItemStandard {
     }
 
     // @dev  _process_transfer performs the transfer of the NFT item
+    //      if available, it will send OwnershipAssigned message to the new owner
+    //      then, it will send Excesses message to the response_destination (old owner) if needed.
     // @note one may override this function to implement custom minting logic
     virtual inline fun _process_transfer(ctx: Context, msg: Transfer, remain: Int) {
         self.owner = msg.new_owner;
