@@ -1,3 +1,4 @@
+import "@stdlib/deploy";
 import "./packages/token/jetton/JettonMaster";
 import "./packages/token/jetton/JettonWallet";
 
@@ -16,7 +17,7 @@ contract ExampleJettonWallet with JettonWallet {
     }
 }
 
-contract ExampleJettonMaster with JettonMaster {
+contract ExampleJettonMaster with JettonMaster, Deployable {
     total_supply: Int as coins = 0;
     mintable: Bool = true;
     owner: Address;
