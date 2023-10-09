@@ -8,3 +8,4 @@
 1006: NFT Seller cannot bid.
 1007: Bid doesn't meet the minimum increase requirement.
 1008: Auction was already set for this NFT.
+1009: Auction did not set up before.

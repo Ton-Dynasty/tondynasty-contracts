@@ -83,7 +83,7 @@ trait NFTAuctionStandard {
         self.auctionInfo.nftHighestBidder = cxt.sender;
         self.auctionInfo.nftHighestBid = bidValue;
         // If bid value is greater than reserve price, then the auction is being started.
-        if (bidValue > self.auctionInfo.reservePrice) {
+        if(bidValue > self.auctionInfo.reservePrice) {
             self._update_auction_end();
             if(self.auctionEndTime == 0) { 
                 // If the auction start, then set the auction end time.
@@ -104,6 +104,15 @@ trait NFTAuctionStandard {
         let buyer: Address = self.auctionInfo.nftHighestBidder;
         self._transfer_nft(buyer);
         self.isInitialized = 0;
+    }
+
+    receive(msg: ReviseAuction) {
+        //self.auctionInfo = msg.reviseAuctionInfo;
+        if(self.auctionEndTime == 0 && self.auctionInfo.reservePrice != msg.reviseAuctionInfo.reservePrice) {
+            // Update the minimum price of the auction. 
+            // This can only be done if no bid has been made that already exceeds the original minimum price.
+            self.auctionInfo.reservePrice = msg.reviseAuctionInfo.reservePrice;
+        }
     }
 
     //********************************************//

@@ -15,6 +15,13 @@ message SetUpAuction {
     auctionPeriod: Int;         // time when the auction ends after it starts
 }
 
+message ReviseSetUpAuction {
+    nftAddress: Address;        // NFT address to be auctioned
+    reservePrice: Int as coins; // minimum bid price to start the auction timer
+    buyNowPrice: Int as coins;  // price at which the NFT can be directly bought
+    auctionPeriod: Int;         // time when the auction ends after it starts
+}
+
 // @dev This struct is used to store auction information
 // @note If you want to use custom auction parameters or logic, consider overriding this struct and setUpAuction function in a derived contract
 struct AuctionInfo {
@@ -28,6 +35,10 @@ struct AuctionInfo {
     nftSeller: Address;         // the address of the seller
     whitelistedBuyer: Address;  // the seller can specify a whitelisted address for a sale (this is effectively a direct sale)
     nftRecipient: Address;      // the bidder can specify a recipient for the NFT if their bid is successful
+}
+
+message ReviseAuction {
+    reviseAuctionInfo: AuctionInfo;
 }
 
 message(0x5fcc3d14) Transfer { 
@@ -114,9 +125,9 @@ trait NFTAuctionMarketStandard {
         }
         self._set_up_auction(sellerAddress, msg.nftAddress, msg.reservePrice, msg.buyNowPrice, msg.auctionPeriod); // set up auction
         // Deploy a new NFT Auction Contract
-        let auctininfo: AuctionInfo = self.nftContractAuctions.get(hashSellerNftAddress)!!;
-        let nftAuctionInit: StateInit = self._nft_auction_init(msg.nftAddress, auctininfo);
-        let nftAuctionAddress: Address = self.get_nft_auction_address(msg.nftAddress, auctininfo);
+        let auctionInfo: AuctionInfo = self.nftContractAuctions.get(hashSellerNftAddress)!!;
+        let nftAuctionInit: StateInit = self._nft_auction_init(msg.nftAddress, auctionInfo);
+        let nftAuctionAddress: Address = self.get_nft_auction_address(msg.nftAddress, auctionInfo);
         if(self.auctionOverCheck.get(nftAuctionAddress) != null) {
             throw(1008); // Auction was already set for this NFT.
         }
@@ -158,8 +169,35 @@ trait NFTAuctionMarketStandard {
         self.auctionTransferCheck.set(hashSellerNftAddress, null);
     }
 
-    receive("SetUpAgain") {
+    receive(msg: ReviseSetUpAuction) {
         // TODO: Let seller can update auction info.
+        let cxt: Context = context();
+        let sellerAddress: Address = cxt.sender;
+        let hashSellerNftAddress: Int = self.get_hash_seller_nft_address(sellerAddress, msg.nftAddress);
+        if(self.get_is_auction_transfer_check(hashSellerNftAddress) != 1) {
+            throw(1003); // This NFT didn't transfer to NFT Auction Market Contract yet.
+        }
+        // Get old auction info.
+        let auctionInfo: AuctionInfo = self.nftContractAuctions.get(hashSellerNftAddress)!!;
+        let nftAuctionInit: StateInit = self._nft_auction_init(msg.nftAddress, auctionInfo);
+        let nftAuctionAddress: Address = self.get_nft_auction_address(msg.nftAddress, auctionInfo);
+        if(self.auctionOverCheck.get(nftAuctionAddress) == null) {
+            throw(1009); // Auction did not set up before.
+        }
+        self._set_up_auction(sellerAddress, msg.nftAddress, msg.reservePrice, msg.buyNowPrice, msg.auctionPeriod); // Revise the auction info.
+        self.auctionOverCheck.set(nftAuctionAddress, msg.nftAddress);
+        let newAuctionInfo: AuctionInfo = self.nftContractAuctions.get(hashSellerNftAddress)!!;
+        send(SendParameters{
+                to: nftAuctionAddress,
+                value: 0,
+                mode: SendRemainingValue,
+                bounce: false,
+                body: ReviseAuction {
+                    reviseAuctionInfo: newAuctionInfo
+                }.toCell()
+            }
+        );
+
     }
 
     receive("EndAuction") {
@@ -189,10 +227,6 @@ trait NFTAuctionMarketStandard {
             }
         );
     }
-
-    //********************************************//
-    //             Internal functions             //
-    //********************************************//
 
     // @dev Retrieves the initial state for the NFT auction contract.
     // @note one MUST override this function to provide NFT Auction initCode
