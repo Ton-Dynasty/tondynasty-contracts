@@ -22,9 +22,11 @@ trait JettonMaster {
     //                  Messages                  //
     //********************************************//
     receive(msg: JettonBurnNotification) {
-
+        let ctx: Context = context();
+        self._check_sender_as_waller(ctx, msg);
+        self.total_supply = self.total_supply - msg.amount;
+        self._send_notification_to_wallet(ctx, msg);
     }
-
 
     //********************************************//
     //             Internal functions             //
@@ -33,6 +35,22 @@ trait JettonMaster {
     // @dev  _get_jetton_wallet_init retrieve init code of a jetton wallet
     // @note one MUST override this function in inherited contract
     abstract inline fun _get_jetton_wallet_init(owner_address: Address): StateInit;
+
+    inline fun _check_sender_as_waller(ctx: Context, msg: JettonBurnNotification) {
+        require(ctx.sender == get_wallet_address(msg.sender), "Sender is not a Jetton wallet");
+    } 
+
+    inline fun _send_notification_to_wallet(ctx: Context, msg: JettonBurnNotification) {
+        if(msg.response_destination != newAddress(0, 0)){
+            send(SendParameters{
+                to: msg.response_destination,
+                value: 0,
+                bounce: false,
+                mode: SendRemainingValue + SendIgnoreErrors,
+                body: TokenExcesses{ queryId: msg.queryId }.toCell()
+            })
+        }
+    }
 
     //*********************************//
     //             Getters             //
