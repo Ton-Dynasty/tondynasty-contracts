@@ -54,6 +54,7 @@ export async function run(provider: NetworkProvider) {
         description: 'TonDynasty Co-Founder Certificate - Tact',
         symbol: 'TDT',
         image: 'https://avatars.githubusercontent.com/u/144251015?s=400&u=a25dfca41bdc6467d9783f5225c93f60e1513630&v=4',
+        social: 'https://t.me/+QfJ9NziDl4VkNDk9',
     };
     const onchainContent = buildOnchainMetadata(jettonParams);
     const nFTCollection = provider.open(await ExampleJettonMaster.fromInit(deployer.address!, onchainContent));

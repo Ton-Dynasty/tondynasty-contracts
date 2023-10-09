@@ -33,6 +33,10 @@ contract ExampleJettonMaster with JettonMaster, Deployable {
         self._mint(ctx, msg);
     }
 
+    override inline fun _mint_check(ctx: Context, msg: JettonMint) {
+        require(self.mintable, "JettonMaster: Jetton is not mintable");
+    }
+
     override inline fun _calculate_jetton_wallet_init(owner_address: Address): StateInit {
         return initOf ExampleJettonWallet(owner_address, myAddress());
     }

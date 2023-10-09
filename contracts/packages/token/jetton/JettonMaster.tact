@@ -27,7 +27,7 @@ trait JettonMaster {
     //********************************************//
     receive(msg: JettonBurnNotification) {
         let ctx: Context = context();
-        self._check_sender_as_waller(ctx, msg);
+        self._check_sender_jetton_wallet(ctx, msg);
         self.total_supply = self.total_supply - msg.amount;
         self._send_notification_to_wallet(ctx, msg);
     }
@@ -53,6 +53,7 @@ trait JettonMaster {
 
     virtual inline fun _mint(ctx: Context, msg: JettonMint) {
         let initCode: StateInit = self._calculate_jetton_wallet_init(msg.receiver);
+        self.total_supply = self.total_supply + msg.amount;
         send(SendParameters{
             to: contractAddress(initCode),
             value: 0,
@@ -69,10 +70,9 @@ trait JettonMaster {
             code: initCode.code,
             data: initCode.data
         });
-        self.total_supply = self.total_supply + msg.amount;
     }
 
-    inline fun _check_sender_as_waller(ctx: Context, msg: JettonBurnNotification) {
+    inline fun _check_sender_jetton_wallet(ctx: Context, msg: JettonBurnNotification) {
         let initCode: StateInit = self._calculate_jetton_wallet_init(msg.sender);
         require(ctx.sender == contractAddress(initCode), "Sender is not a Jetton wallet");
     } 

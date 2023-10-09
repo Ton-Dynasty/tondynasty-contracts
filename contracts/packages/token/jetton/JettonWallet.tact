@@ -92,6 +92,14 @@ trait JettonWallet {
         self.balance = self.balance + msg.amount;
     }
 
+    bounced(src: bounced<JettonInternalTransfer>) {
+        self.balance = self.balance + src.amount;
+    }
+
+    bounced(src: bounced<JettonBurnNotification>) {
+        self.balance = self.balance + src.amount;
+    }
+
 
     //********************************************//
     //             Internal functions             //

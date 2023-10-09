@@ -4,6 +4,7 @@
     "scripts": {
         "start": "blueprint run",
         "build": "rm -rf ./build/* && blueprint build --all",
+        "dev": "blueprint build",
         "test": "jest"
     },
     "license": "MIT",
