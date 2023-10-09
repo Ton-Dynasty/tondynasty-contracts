@@ -1,5 +1,5 @@
 /*
-    This file provides traits for NFT auction which can be easily used in a permissionless and flexible manner to auction (or simply buy/sell) NFTs. 
+    This file provides traits for NFT auction market which can be easily used in a permissionless and flexible manner to auction (or simply buy/sell) NFTs. 
     Sellers and bidders are able to make customized auctions and bids that allow for a holistic NFT auction/sale mechanism.
 
     Reference:
@@ -15,6 +15,8 @@ message SetUpAuction {
     auctionPeriod: Int;         // duration for others to counter-bid after the highest bid is placed
 }
 
+// @dev This struct is used to store auction information
+// @note If you want to use custom auction parameters or logic, consider overriding this struct, setUpAuction function in a derived contract and the same struct in NFT auction contract.
 struct AuctionInfo {
     bidIncreasePercentage: Int; // the minimum percentage by which a new bid must exceed the current highest bid
     auctionBidPeriod: Int;      // increments the length of time the auction is open in which a new bid can be made after each bid
@@ -46,7 +48,7 @@ message TransferNFT {
     forward_payload: Cell?; 
 }
 
-trait NFTAuctionMarket {
+trait NFTAuctionMarketStandard {
     owner: Address;
     // Get auction info by seller address and nft address.
     nftContractAuctions: map<Int, AuctionInfo>; // key => hash(sellerAddress and nftAddress), value => AuctionInfo
@@ -66,6 +68,9 @@ trait NFTAuctionMarket {
     //********************************************//
     //                  Messages                  //
     //********************************************//
+
+    // Default receive function to receive funds
+    receive() {}
     
     // @dev Processes the OwnershipAssigned message and updates auction mappings,
     //      and confirms NFT transfer to the Auction Market.
@@ -157,7 +162,7 @@ trait NFTAuctionMarket {
     //********************************************//
 
     // @dev Initializes an auction for a specified NFT with given parameters such as reserve price, buy now price, and auction duration.
-    // @note If you want to use custom auction parameters or logic, consider overriding this function in a derived contract.
+    // @note If you want to use custom auction parameters or logic, consider overriding this function and AuctionInfo struct in a derived contract.
     virtual inline fun setUpAuction(sellerAddress: Address, nftAddress: Address, reservePrice: Int, buyNowPrice: Int, auctionPeriod: Int) {
         let hashSellerNftAddress: Int = self.hashSellerNftAddress(sellerAddress, nftAddress);
         self.nftContractAuctions.set(hashSellerNftAddress,
@@ -211,5 +216,4 @@ trait NFTAuctionMarket {
         let hashSellerNftAddress: Int = self.hashSellerNftAddress(seller, nftAddress);
         return self.nftContractAuctions.get(hashSellerNftAddress)!!;
     }
-
 }
