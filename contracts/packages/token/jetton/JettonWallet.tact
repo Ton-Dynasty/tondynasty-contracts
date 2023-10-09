@@ -96,7 +96,6 @@ trait JettonWallet {
     //********************************************//
     //             Internal functions             //
     //********************************************//
-    abstract inline fun _get_jetton_wallet_init(): StateInit;
 
     abstract inline fun _calculate_jetton_wallet_init(owner_address: Address): StateInit;
 
@@ -175,7 +174,7 @@ trait JettonWallet {
     }
 
     virtual inline fun _transfer_jetton(ctx: Context, msg: JettonTransfer) {
-        let init: StateInit = self._get_jetton_wallet_init();
+        let init: StateInit = self._calculate_jetton_wallet_init(self.owner);
         let receiver: Address = contractAddress(init);
         send(SendParameters{
             to: receiver,
@@ -203,7 +202,7 @@ trait JettonWallet {
             balance: self.balance,
             owner: self.owner,
             jetton: self.jetton_master,
-            jetton_wallet_code: self._get_jetton_wallet_init().code
+            jetton_wallet_code: self._calculate_jetton_wallet_init(self.owner).code
         };
     }    
 }

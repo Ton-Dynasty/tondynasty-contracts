@@ -42,9 +42,9 @@ trait JettonMaster {
     //             Internal functions             //
     //********************************************//
 
-    // @dev  _get_jetton_wallet_init retrieve init code of a jetton wallet
+    // @dev  _calculate_jetton_wallet_init retrieve init code of a jetton wallet
     // @note one MUST override this function in inherited contract
-    abstract inline fun _get_jetton_wallet_init(owner_address: Address): StateInit;
+    abstract inline fun _calculate_jetton_wallet_init(owner_address: Address): StateInit;
 
     virtual inline fun _mint_check(ctx: Context, msg: JettonMint) {
         require(ctx.sender == self.owner, "JettonMaster: Sender is not a Jetton owner");
@@ -52,7 +52,7 @@ trait JettonMaster {
     }
 
     virtual inline fun _mint(ctx: Context, msg: JettonMint) {
-        let initCode: StateInit = self._get_jetton_wallet_init(msg.receiver);
+        let initCode: StateInit = self._calculate_jetton_wallet_init(msg.receiver);
         send(SendParameters{
             to: contractAddress(initCode),
             value: 0,
@@ -73,7 +73,7 @@ trait JettonMaster {
     }
 
     inline fun _check_sender_as_waller(ctx: Context, msg: JettonBurnNotification) {
-        let initCode: StateInit = self._get_jetton_wallet_init(msg.sender);
+        let initCode: StateInit = self._calculate_jetton_wallet_init(msg.sender);
         require(ctx.sender == contractAddress(initCode), "Sender is not a Jetton wallet");
     } 
 
@@ -100,13 +100,13 @@ trait JettonMaster {
             mintable: self.mintable,
             admin_address: self.owner,
             jetton_content: self.jetton_content,
-            jetton_wallet_code: self._get_jetton_wallet_init(myAddress()).code
+            jetton_wallet_code: self._calculate_jetton_wallet_init(myAddress()).code
         };
     }
 
-    // @dev get_wallet_address call _get_jetton_wallet_init and return address of wallet
+    // @dev get_wallet_address call _calculate_jetton_wallet_init and return address of wallet
     get fun get_wallet_address(owner_address: Address): Address {
-        let initCode: StateInit = self._get_jetton_wallet_init(owner_address);
+        let initCode: StateInit = self._calculate_jetton_wallet_init(owner_address);
         return contractAddress(initCode);
     }
 }

@@ -16,8 +16,8 @@ contract NFTFractionWallet with JettonWallet {
         self.jetton_master = jetton_master;
     }
 
-    override inline fun _get_jetton_wallet_init(): StateInit {
-        return initOf NFTFractionWallet(self.owner, self.jetton_master);
+    override inline fun _calculate_jetton_wallet_init(owner_addr: Address): StateInit {
+        return initOf NFTFractionWallet(owner_addr, self.jetton_master);
     }
 }
 
@@ -34,7 +34,7 @@ contract NFTFraction with JettonMaster {
         self.jetton_content = jetton_content;
     }
 
-    override inline fun _get_jetton_wallet_init(owner_address: Address): StateInit {
+    override inline fun _calculate_jetton_wallet_init(owner_address: Address): StateInit {
         return initOf NFTFractionWallet(owner_address, myAddress());
     }
 }

@@ -12,10 +12,6 @@ contract ExampleJettonWallet with JettonWallet {
         self.jetton_master = jetton_master;
     }
 
-    override inline fun _get_jetton_wallet_init(): StateInit {
-        return initOf ExampleJettonWallet(self.owner, self.jetton_master);
-    }
-
     override inline fun _calculate_jetton_wallet_init(owner_address: Address): StateInit {
         return initOf ExampleJettonWallet(self.jetton_master, owner_address);
     }
@@ -27,7 +23,17 @@ contract ExampleJettonMaster with JettonMaster, Deployable {
     owner: Address;
     jetton_content: Cell;
 
-    override inline fun _get_jetton_wallet_init(owner_address: Address): StateInit {
+    receive("Mint:100") {
+        let ctx: Context = context();
+        let msg: JettonMint = JettonMint{
+            receiver: ctx.sender,
+            amount: 100
+        };
+        self._mint_check(ctx, msg);
+        self._mint(ctx, msg);
+    }
+
+    override inline fun _calculate_jetton_wallet_init(owner_address: Address): StateInit {
         return initOf ExampleJettonWallet(owner_address, myAddress());
     }
 
