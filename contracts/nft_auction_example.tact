@@ -25,14 +25,16 @@ contract ExampleNFTAuction with NFTAuctionStandard {
     owner: Address;
     nftAddress: Address;
     auctionInfo: AuctionInfo;
-    auctionEnd: Int;
+    auctionBidPeriod: Int;
     isInitialized: Int;
+    auctionEndTime: Int;
 
     init(owner: Address, nftAddress: Address, auctionInfo: AuctionInfo) {
         self.owner = owner;
         self.nftAddress = nftAddress;
         self.auctionInfo = auctionInfo;
-        self.auctionEnd = 0;
+        self.auctionBidPeriod = 0;
+        self.auctionEndTime = 0;
         self.isInitialized = 0;
     }
 }

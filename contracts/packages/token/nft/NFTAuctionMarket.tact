@@ -12,7 +12,7 @@ message SetUpAuction {
     nftAddress: Address;        // NFT address to be auctioned
     reservePrice: Int as coins; // minimum bid price to start the auction timer
     buyNowPrice: Int as coins;  // price at which the NFT can be directly bought
-    auctionPeriod: Int;         // duration for others to counter-bid after the highest bid is placed
+    auctionPeriod: Int;         // time when the auction ends after it starts
 }
 
 // @dev This struct is used to store auction information

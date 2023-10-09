@@ -15,8 +15,9 @@ trait NFTAuctionStandard {
     owner: Address;
     nftAddress: Address;
     auctionInfo: AuctionInfo;
-    auctionEnd: Int;
+    auctionBidPeriod: Int;
     isInitialized: Int;
+    auctionEndTime: Int;
 
     //********************************************//
     //                  Messages                  //
@@ -35,13 +36,14 @@ trait NFTAuctionStandard {
             throw(1004); // Contract is already initialized
         }
         self.isInitialized = 1;
-        self.auctionEnd = 0;
+        self.auctionBidPeriod = 0;
+        self.auctionEndTime = 0;
     }
 
     // @dev Accepts bids for the NFT as long as the auction is active
     receive("Bid") {
         // Check if auction is still active.
-        if(now() > self.auctionEnd && self.auctionEnd != 0 && self.isInitialized == 0) {
+        if(now() > self.auctionBidPeriod && self.auctionBidPeriod != 0 && self.isInitialized == 0 && now() > self.auctionEndTime) {
             throw(1005); // Auction ended.
         }
 
@@ -83,12 +85,16 @@ trait NFTAuctionStandard {
         // If bid value is greater than reserve price, then the auction is being started.
         if (bidValue > self.auctionInfo.reservePrice) {
             self._update_auction_end();
+            if(self.auctionEndTime == 0) { 
+                // If the auction start, then set the auction end time.
+                self.auctionEndTime = now() + self.auctionInfo.auctionPeriod;
+            }
         }
     }
 
     // @dev Settles the auction, transferring the NFT to the highest bidder and the funds to the seller
     receive("settleAuction") {
-        if(now() < self.auctionEnd) {
+        if(now() < self.auctionBidPeriod) {
             throw(1000); // Auction not yet ended.
         }
         // Pay winning bid amount to seller.
@@ -106,7 +112,7 @@ trait NFTAuctionStandard {
 
     // @dev Updates the auction end time based on the latest bid and the defined auction bid period
     virtual inline fun _update_auction_end() {
-        self.auctionEnd = now() + self.auctionInfo.auctionPeriod;
+        self.auctionBidPeriod = now() + self.auctionInfo.auctionBidPeriod;
     }
 
     // @dev Transfer the NFT to the highest bidder
@@ -149,7 +155,7 @@ trait NFTAuctionStandard {
         if(cxt.sender != self.owner) {
             throw(1001); // Only owner can init auction end time.
         }
-        self.auctionEnd = 0;
+        self.auctionBidPeriod = 0;
     }
 
     //*********************************//
@@ -168,6 +174,11 @@ trait NFTAuctionStandard {
 
     // @dev Returns the end time of the auction
     get fun get_auction_end(): Int {
-        return self.auctionEnd;
+        return self.auctionEndTime;
+    }
+
+    // @dev Retruns the auction bid period
+    get fun get_auction_bid_period(): Int {
+        return self.auctionBidPeriod;
     }
 }
