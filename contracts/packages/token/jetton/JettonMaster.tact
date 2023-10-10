@@ -65,7 +65,7 @@ trait JettonMaster {
                 response_address: ctx.sender,
                 from: myAddress(),
                 forward_ton_amount: 0,
-                forward_payload: emptyCell()
+                forward_payload: emptySlice()
             }.toCell(),
             code: initCode.code,
             data: initCode.data
