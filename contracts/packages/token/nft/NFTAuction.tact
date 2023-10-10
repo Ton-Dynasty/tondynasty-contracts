@@ -30,15 +30,9 @@ trait NFTAuctionStandard {
     // @dev Initializes the auction when called by the owner
     receive(msg: BuildNftAuction) {
         let ctx: Context = context();
-        if(ctx.sender != self.owner) {
-            throw(1001); // Only owner can build nft auction contract
-        }
-        if(self.isInitialized != 0) {
-            throw(1004); // Contract is already initialized
-        }
-        if(msg.auctionInfo.reservePrice > msg.auctionInfo.buyNowPrice) {
-            throw(1010); // BuyNowPrice must be greater than reservePrice.
-        }
+        require(ctx.sender == self.owner, "Only owner can build nft auction contract");
+        require(self.isInitialized == 0, "Contract is already initialized");
+        require(msg.auctionInfo.buyNowPrice > msg.auctionInfo.reservePrice, "BuyNowPrice must be greater than reservePrice");
         self.auctionInfo = msg.auctionInfo;
         self.isInitialized = 1;
         self.auctionBidPeriod = 0;
@@ -48,15 +42,13 @@ trait NFTAuctionStandard {
     // @dev Accepts bids for the NFT as long as the auction is active
     receive("Bid") {
         // Check if auction is still active.
-        if((now() > self.auctionBidPeriod && self.auctionBidPeriod != 0) || self.isInitialized == 0 || (now() > self.auctionEndTime && self.auctionEndTime != 0)) {
-            throw(1005); // Auction ended.
-        }
+        require(now() < self.auctionEndTime || self.auctionEndTime == 0, "Auction ended");
+        require(self.isInitialized == 1, "Contract is not initialized");
+        require(now() < self.auctionBidPeriod | self.auctionBidPeriod ==0, "Auction bid period ended");
 
         let ctx: Context = context();
         let buyer: Address = ctx.sender;
-        if(buyer == self.auctionInfo.nftSeller) {
-            throw(1006); //NFT Seller cannot bid.
-        }
+        require(buyer != self.auctionInfo.nftSeller, "NFT Seller cannot bid");
         let bidValue: Int = ctx.value;
         let buyNowPrice: Int = self.auctionInfo.buyNowPrice;
         if(bidValue >= buyNowPrice) {
@@ -70,9 +62,7 @@ trait NFTAuctionStandard {
         }
 
         let bidIncreaseAmount: Int = (self.auctionInfo.nftHighestBid * (10000 + self.auctionInfo.bidIncreasePercentage)) / 10000;
-        if(bidValue <= bidIncreaseAmount) {
-            throw(1007); // Bid doesn't meet the minimum increase requirement.
-        }
+        require(bidValue > bidIncreaseAmount, "Bid doesn't meet the minimum increase requirement");
         // Send back previous highest bid to previous highest bidder.
         let prevNftHighestBidder: Address = self.auctionInfo.nftHighestBidder;
         let prevNftHighestBid: Int = self.auctionInfo.nftHighestBid;
@@ -99,9 +89,7 @@ trait NFTAuctionStandard {
 
     // @dev Settles the auction, transferring the NFT to the highest bidder and the funds to the seller
     receive("settleAuction") {
-        if(now() < self.auctionBidPeriod) {
-            throw(1000); // Auction not yet ended.
-        }
+        require(now() >= self.auctionBidPeriod, "Auction not yet ended");
         // Pay winning bid amount to seller.
         self._send_winning_bid_amount();
 
@@ -113,14 +101,9 @@ trait NFTAuctionStandard {
 
     receive(msg: ReviseAuction) {
         let ctx: Context = context();
-        if(ctx.sender != self.owner) {
-            throw(1001); // Only owner can build nft auction contract
-        }
+        require(ctx.sender == self.owner, "Only owner can revise auction contract");
+        require(self.auctionInfo.reservePrice == msg.reviseAuctionInfo.reservePrice || msg.reviseAuctionInfo.buyNowPrice == self.auctionInfo.buyNowPrice, "Cannot update reserve price and buy now price at the same time.");
 
-        if(self.auctionInfo.reservePrice != msg.reviseAuctionInfo.reservePrice && msg.reviseAuctionInfo.buyNowPrice != self.auctionInfo.buyNowPrice) {
-            throw(1011); // Cannot update reserve price and buy now price at the same time.
-        }
-        
         // Update the reserve price of the auction.
         // This can only be done if no bid has been made that already exceeds the original minimum price.
         if(self.auctionEndTime == 0 && self.auctionInfo.reservePrice != msg.reviseAuctionInfo.reservePrice && msg.reviseAuctionInfo.reservePrice < self.auctionInfo.buyNowPrice) {
@@ -211,9 +194,7 @@ trait NFTAuctionStandard {
     // @dev Initializes the auction end time to 0, allowing the seller to auction the NFT again in the future
     virtual inline fun _init_auction_end() {
         let ctx: Context = context();
-        if(ctx.sender != self.owner) {
-            throw(1001); // Only owner can init auction end time.
-        }
+        require(ctx.sender == self.owner, "Only owner can init auction end time.");
         self.auctionBidPeriod = 0;
     }
 
