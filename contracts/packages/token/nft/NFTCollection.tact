@@ -11,6 +11,8 @@ struct CollectionData {
 }
 
 trait NFTCollectionStandard {
+    virtual const NFT_COLLECTION_STANDARD_METADATA: String = "meta.json";
+
     next_item_index: Int;
     collection_content: Cell;
     owner_address: Address;
@@ -38,7 +40,7 @@ trait NFTCollectionStandard {
         let builder: StringBuilder = beginString();
         let urlPrefix: String = self.collection_content.asSlice().asString();
         builder.append(urlPrefix);
-        builder.append("meta.json");
+        builder.append(self.NFT_COLLECTION_STANDARD_METADATA);
         return CollectionData {
             next_item_index: self.next_item_index,
             collection_content: builder.toCell(),

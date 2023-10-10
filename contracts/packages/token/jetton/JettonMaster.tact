@@ -27,9 +27,9 @@ trait JettonMaster {
     //********************************************//
     receive(msg: JettonBurnNotification) {
         let ctx: Context = context();
-        self._check_sender_jetton_wallet(ctx, msg);
+        self._burn_notification_validate(ctx, msg);
         self.total_supply = self.total_supply - msg.amount;
-        self._send_notification_to_wallet(ctx, msg);
+        self._burn_notification_send_notify(ctx, msg);
     }
 
     receive(msg: JettonMint) {
@@ -42,9 +42,9 @@ trait JettonMaster {
     //             Internal functions             //
     //********************************************//
 
-    // @dev  _calculate_jetton_wallet_init retrieve init code of a jetton wallet
+    // @dev  calculate_jetton_wallet_init retrieve init code of a jetton wallet
     // @note one MUST override this function in inherited contract
-    abstract inline fun _calculate_jetton_wallet_init(owner_address: Address): StateInit;
+    abstract inline fun calculate_jetton_wallet_init(owner_address: Address): StateInit;
 
     virtual inline fun _mint_validate(ctx: Context, msg: JettonMint) {
         require(ctx.sender == self.owner, "JettonMaster: Sender is not a Jetton owner");
@@ -52,7 +52,7 @@ trait JettonMaster {
     }
 
     virtual inline fun _mint(ctx: Context, msg: JettonMint) {
-        let initCode: StateInit = self._calculate_jetton_wallet_init(msg.receiver);
+        let initCode: StateInit = self.calculate_jetton_wallet_init(msg.receiver);
         self.total_supply = self.total_supply + msg.amount;
         send(SendParameters{
             to: contractAddress(initCode),
@@ -72,12 +72,12 @@ trait JettonMaster {
         });
     }
 
-    inline fun _check_sender_jetton_wallet(ctx: Context, msg: JettonBurnNotification) {
-        let initCode: StateInit = self._calculate_jetton_wallet_init(msg.sender);
+    inline fun _burn_notification_validate(ctx: Context, msg: JettonBurnNotification) {
+        let initCode: StateInit = self.calculate_jetton_wallet_init(msg.sender);
         require(ctx.sender == contractAddress(initCode), "Sender is not a Jetton wallet");
     } 
 
-    inline fun _send_notification_to_wallet(ctx: Context, msg: JettonBurnNotification) {
+    inline fun _burn_notification_send_notify(ctx: Context, msg: JettonBurnNotification) {
         if(msg.response_destination != newAddress(0, 0)){
             send(SendParameters{
                 to: msg.response_destination,
@@ -100,13 +100,13 @@ trait JettonMaster {
             mintable: self.mintable,
             admin_address: self.owner,
             jetton_content: self.jetton_content,
-            jetton_wallet_code: self._calculate_jetton_wallet_init(myAddress()).code
+            jetton_wallet_code: self.calculate_jetton_wallet_init(myAddress()).code
         };
     }
 
-    // @dev get_wallet_address call _calculate_jetton_wallet_init and return address of wallet
+    // @dev get_wallet_address call calculate_jetton_wallet_init and return address of wallet
     get fun get_wallet_address(owner_address: Address): Address {
-        let initCode: StateInit = self._calculate_jetton_wallet_init(owner_address);
+        let initCode: StateInit = self.calculate_jetton_wallet_init(owner_address);
         return contractAddress(initCode);
     }
 }

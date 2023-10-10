@@ -108,11 +108,11 @@ trait JettonWallet {
     //             Internal functions             //
     //********************************************//
 
-    abstract inline fun _calculate_jetton_wallet_init(owner_address: Address): StateInit;
+    abstract inline fun calculate_jetton_wallet_init(owner_address: Address): StateInit;
 
     virtual inline fun _internal_transfer_validate(ctx: Context, msg: JettonInternalTransfer) {
         if(ctx.sender != self.jetton_master){
-            let init: StateInit = self._calculate_jetton_wallet_init(msg.from);
+            let init: StateInit = self.calculate_jetton_wallet_init(msg.from);
             require(ctx.sender == contractAddress(init), "JettonWallet: Only Jetton master or Jetton wallet can call this function");
         }
     }
@@ -191,7 +191,7 @@ trait JettonWallet {
     }
 
     virtual inline fun _transfer_jetton(ctx: Context, msg: JettonTransfer) {
-        let init: StateInit = self._calculate_jetton_wallet_init(self.owner);
+        let init: StateInit = self.calculate_jetton_wallet_init(self.owner);
         let receiver: Address = contractAddress(init);
         send(SendParameters{
             to: receiver,
@@ -219,7 +219,7 @@ trait JettonWallet {
             balance: self.balance,
             owner: self.owner,
             jetton: self.jetton_master,
-            jetton_wallet_code: self._calculate_jetton_wallet_init(self.owner).code
+            jetton_wallet_code: self.calculate_jetton_wallet_init(self.owner).code
         };
     }    
 }

@@ -62,12 +62,12 @@ trait NFTItemStandard {
 
     receive(msg: Transfer){
         let ctx: Context = context();
-        let remain: Int = self._estimate_rest_value(ctx);
-        self._validate_transfer(ctx, msg, remain);
+        let remain: Int = self._transfer_estimate_rest_value(ctx);
+        self._transfer_validate(ctx, msg, remain);
         if (self.is_initialized == false) {
-            self._process_initialize(ctx, msg);
+            self.mint(ctx, msg);
         } else {
-            self._process_transfer(ctx, msg, remain);
+            self.transfer(ctx, msg, remain);
         }
     }
 
@@ -79,25 +79,25 @@ trait NFTItemStandard {
     //             Internal functions             //
     //********************************************//
 
-    // @dev  _estimate_rest_value calculates the remain amount of nanotons that should be sent back to the old owner
-    inline fun _estimate_rest_value(ctx: Context): Int {
+    // @dev  _transfer_estimate_rest_value calculates the remain amount of nanotons that should be sent back to the old owner
+    inline fun _transfer_estimate_rest_value(ctx: Context): Int {
         let remain: Int = ctx.value;
         let tonBalanceBeforeMsg: Int = myBalance() - remain;
         let storageFee: Int = self.minTonsForStorage - min(tonBalanceBeforeMsg, self.minTonsForStorage);
         return remain - (storageFee + self.gasConsumption);
     }
 
-    // @dev  _validate_transfer checks if the request is valid (e.g. the sender is the current owner of the NFT item)
+    // @dev  _transfer_validate checks if the request is valid (e.g. the sender is the current owner of the NFT item)
     //       throws error if the request is invalid
     // @note one may override this function to implement custom validation logic
     //       for instance, a fractionable NFT item may check whether the item is locked
-    virtual inline fun _validate_transfer(ctx: Context, msg: Transfer, remain: Int) {
+    virtual inline fun _transfer_validate(ctx: Context, msg: Transfer, remain: Int) {
         require(ctx.sender == self.owner || ctx.sender == self.collection_address, "NFTItemStandard: Only the owner or collection can transfer the NFT item");
     }
 
-    // @dev  _process_initialize usually performs the minting of the NFT item
+    // @dev  mint usually performs the minting of the NFT item
     // @note one may override this function to implement custom minting logic
-    virtual inline fun _process_initialize(ctx: Context, msg: Transfer) {
+    virtual inline fun mint(ctx: Context, msg: Transfer) {
         require(ctx.sender == self.collection_address, "NFTItemStandard: Only the collection can initialize the NFT item");
         self.is_initialized = true;
         self.owner = msg.new_owner;
@@ -109,11 +109,11 @@ trait NFTItemStandard {
         });
     }
 
-    // @dev  _process_transfer performs the transfer of the NFT item
+    // @dev  transfer performs the transfer of the NFT item
     //      if available, it will send OwnershipAssigned message to the new owner
     //      then, it will send Excesses message to the response_destination (old owner) if needed.
     // @note one may override this function to implement custom minting logic
-    virtual inline fun _process_transfer(ctx: Context, msg: Transfer, remain: Int) {
+    virtual inline fun transfer(ctx: Context, msg: Transfer, remain: Int) {
         self.owner = msg.new_owner;
         if (msg.forward_amount > 0) {
             send(SendParameters{

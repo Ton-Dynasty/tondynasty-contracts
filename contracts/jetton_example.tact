@@ -12,7 +12,7 @@ contract ExampleJettonWallet with JettonWallet {
         self.jetton_master = jetton_master;
     }
 
-    override inline fun _calculate_jetton_wallet_init(owner_address: Address): StateInit {
+    override inline fun calculate_jetton_wallet_init(owner_address: Address): StateInit {
         return initOf ExampleJettonWallet(self.jetton_master, owner_address);
     }
 }
@@ -37,7 +37,7 @@ contract ExampleJettonMaster with JettonMaster, Deployable {
         require(self.mintable, "JettonMaster: Jetton is not mintable");
     }
 
-    override inline fun _calculate_jetton_wallet_init(owner_address: Address): StateInit {
+    override inline fun calculate_jetton_wallet_init(owner_address: Address): StateInit {
         return initOf ExampleJettonWallet(owner_address, myAddress());
     }
 
