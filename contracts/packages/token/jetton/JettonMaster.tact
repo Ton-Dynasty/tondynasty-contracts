@@ -1,5 +1,10 @@
 /*
+    This file provides traits for TEP-0074, TEP-0064 jetton standard
 
+    [TEP0074](https://github.com/ton-blockchain/TEPs/blob/master/text/0074-jettons-standard.md)
+    [Official FunC implementation](https://github.com/ton-blockchain/token-contract/blob/main/ft/jetton-wallet.fc)
+    [Ton Minter Contract](https://github.com/ton-blockchain/minter-contract)
+    [Tact Template](https://github.com/howardpen9/jetton-implementation-in-tact/blob/main/sources/contract.tact)
 */
 import "./JettonWallet";
 
