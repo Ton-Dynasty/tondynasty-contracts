@@ -31,7 +31,7 @@ contract ExampleNFTCollection with NFTCollectionStandard, NFTRoyaltyStandard, Es
                     response_destination: ctx.sender,
                     custom_payload: emptyCell(),
                     forward_amount: 0,
-                    forward_payload: emptyCell()
+                    forward_payload: emptySlice()
                 }.toCell(),
                 code: nftItemInit.code,
                 data: nftItemInit.data

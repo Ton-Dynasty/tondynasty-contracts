@@ -75,7 +75,7 @@ contract FNFTCollection with NFTCollectionStandard, NFTRoyaltyStandard, Estimata
                     response_destination: ctx.sender,
                     custom_payload: emptyCell(),
                     forward_amount: 0,
-                    forward_payload: emptyCell()
+                    forward_payload: emptySlice()
                 }.toCell(),
                 code: nftItemInit.code,
                 data: nftItemInit.data
@@ -137,6 +137,37 @@ contract FNFTItem with NFTItemStandard, Lockable, Ownable {
 
     inline fun fractionalize(ctx: Context) {
         self.lock();
+        let contentCell: map<Int, Cell> = emptyMap();
+        let key1: StringBuilder = beginString();
+        key1.append("name");
+        let keyCell: Cell = key1.toCell();
+        let keyHash1: Int = keyCell.hash(); // Int
+        let value1: StringBuilder = beginString();
+        value1.append("TonDynasty");
+        let valueCell1: Cell = value1.toCell();
+        contentCell.set(keyHash1, valueCell1);
+
+        let key2: StringBuilder = beginString();
+        key2.append("description");
+        let keyCell2: Cell = key2.toCell();
+        let keyHash2: Int = keyCell2.hash(); // Int
+        let value2: StringBuilder = beginString();
+        value2.append("TonDynasty Co-Founder Certificate - Tact");
+        let valueCell2: Cell = value2.toCell();
+        contentCell.set(keyHash2, valueCell2);
+
+        let key3: StringBuilder = beginString();
+        key3.append("symbol");
+        let keyCell3: Cell = key3.toCell();
+        let keyHash3: Int = keyCell3.hash(); // Int
+        let value3: StringBuilder = beginString();
+        value3.append("TDT");
+        let valueCell3: Cell = value3.toCell();
+        contentCell.set(keyHash3, valueCell3);
+        
+        let dicCell: Cell = contentCell.asCell()!!;
+        self.individual_content = beginCell().storeInt(0, 8).storeRef(dicCell).endCell();
+
         let nftFractionInit: StateInit = initOf NFTFraction(self.fraction_params.max_fraction_supply, myAddress(), self.individual_content);
         self.forward(
             contractAddress(nftFractionInit),

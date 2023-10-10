@@ -190,7 +190,7 @@ trait NFTAuctionStandard {
                 response_destination: buyer,
                 custom_payload: emptyCell(),
                 forward_amount: 0,
-                forward_payload: emptyCell()
+                forward_payload: emptySlice()
             }.toCell()
         });
     }
