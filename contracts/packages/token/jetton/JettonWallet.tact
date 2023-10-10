@@ -73,7 +73,7 @@ trait JettonWallet {
     receive(msg: JettonTransfer) {
         let ctx: Context = context();
         self.balance = self.balance - msg.amount;
-        require(self.balance >= 0, "JettonTransfer: Not enough jettons in wallet");
+        require(self.balance >= 0, "JettonWallet: Not enough jettons to transfer");
         self._transfer_validate(ctx, msg);
         self._transfer_estimate_remain_value(ctx, msg);
         self._transfer_jetton(ctx, msg);
@@ -81,6 +81,8 @@ trait JettonWallet {
 
     receive(msg: JettonBurn) {
         let ctx: Context = context();
+        self.balance = self.balance - msg.amount;
+        require(self.balance >= 0, "JettonWallet: Not enough balance to burn tokens");
         self._burn_validate(ctx, msg);
         self._burn_tokens(ctx, msg);
     }
@@ -88,8 +90,7 @@ trait JettonWallet {
     receive(msg: JettonInternalTransfer) {
         let ctx: Context = context();
         self.balance = self.balance + msg.amount;
-        require(self.balance >= 0, "JettonInternalTransfer: Not allow negative balance");
-        
+        require(self.balance >= 0, "JettonWallet: Not allow negative balance after internal transfer");
         self._internal_transfer_validate(ctx, msg);
         let remain: Int = self._internal_transfer_estimate_remain_value(ctx, msg);
         if (msg.forward_ton_amount > 0){
@@ -159,12 +160,10 @@ trait JettonWallet {
     }
     
     virtual inline fun _burn_validate(ctx: Context, msg: JettonBurn) {
-        require(ctx.sender == self.owner, "JettonWalletBurnable: Only owner can burn tokens");
+        require(ctx.sender == self.owner, "JettonWallet: Only owner can burn tokens");
     }
 
     virtual inline fun _burn_tokens(ctx: Context, msg: JettonBurn) {
-        self.balance = self.balance - msg.amount;
-        require(self.balance >= 0, "JettonWalletBurnable: Not enough balance to burn tokens");
         send(SendParameters{
             to: self.jetton_master,
             value: 0,

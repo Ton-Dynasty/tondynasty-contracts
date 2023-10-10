@@ -103,9 +103,9 @@ trait NFTAuctionMarketStandard {
     // @dev Processes the OwnershipAssigned message and updates auction mappings,
     //      and confirms NFT transfer to the Auction Market.
     receive(msg: OwnershipAssigned) {
-        let cxt: Context = context();
+        let ctx: Context = context();
         let prev_owner: Address = msg.prev_owner; // Seller Address
-        let nftAddress: Address = cxt.sender;
+        let nftAddress: Address = ctx.sender;
         let hashSellerNftAddress: Int = self.get_hash_seller_nft_address(prev_owner, nftAddress);
 
         // [For Future Version] 
@@ -126,8 +126,8 @@ trait NFTAuctionMarketStandard {
     //      Upon successful validation, it sets up the auction for the specified NFT and deploys 
     //      a new NFT Auction Contract instance for it.
     receive(msg: SetUpAuction) {
-        let cxt: Context = context();
-        let sellerAddress: Address = cxt.sender;
+        let ctx: Context = context();
+        let sellerAddress: Address = ctx.sender;
         let hashSellerNftAddress: Int = self.get_hash_seller_nft_address(sellerAddress, msg.nftAddress);
         if(self.get_is_auction_transfer_check(hashSellerNftAddress) != 1) {
             throw(1003); // This NFT didn't transfer to NFT Auction Market Contract yet.
@@ -159,8 +159,8 @@ trait NFTAuctionMarketStandard {
 
     // @dev Handles the TransferNFT message and facilitates NFT transfer to the auction's winning bidder.
     receive(msg: TransferNFT) {
-        let cxt: Context = context();
-        if(self.auctionOverCheck.get(cxt.sender) == null) {
+        let ctx: Context = context();
+        if(self.auctionOverCheck.get(ctx.sender) == null) {
             throw(1002); // Auction was not set before
         }
         send(SendParameters{
@@ -177,15 +177,15 @@ trait NFTAuctionMarketStandard {
                 forward_payload: msg.forward_payload
             }.toCell()
         });
-        self.auctionOverCheck.set(cxt.sender, null);
+        self.auctionOverCheck.set(ctx.sender, null);
         let hashSellerNftAddress: Int = self.get_hash_seller_nft_address(msg.seller, msg.nftAddress);
         self.auctionTransferCheck.set(hashSellerNftAddress, null);
     }
 
     receive(msg: ReviseSetUpAuction) {
         // Seller can update auction info.
-        let cxt: Context = context();
-        let sellerAddress: Address = cxt.sender;
+        let ctx: Context = context();
+        let sellerAddress: Address = ctx.sender;
         let hashSellerNftAddress: Int = self.get_hash_seller_nft_address(sellerAddress, msg.nftAddress);
         if(self.get_is_auction_transfer_check(hashSellerNftAddress) != 1) {
             throw(1003); // This NFT didn't transfer to NFT Auction Market Contract yet.
@@ -213,8 +213,8 @@ trait NFTAuctionMarketStandard {
 
     receive(msg: EndAuction) {
         // Seller can end auction.
-        let cxt: Context = context();
-        let sellerAddress: Address = cxt.sender;
+        let ctx: Context = context();
+        let sellerAddress: Address = ctx.sender;
         let hashSellerNftAddress: Int = self.get_hash_seller_nft_address(sellerAddress, msg.nftAddress);
         let nftAuctionAddress: Address = self.get_nft_auction_address(msg.nftAddress, sellerAddress);
         if(self.auctionOverCheck.get(nftAuctionAddress) == null) {
