@@ -72,9 +72,10 @@ trait JettonWallet {
 
     receive(msg: JettonTransfer) {
         let ctx: Context = context();
+        self.balance = self.balance - msg.amount;
+        require(self.balance >= msg.amount, "Not enough jettons in wallet");
         self._transfer_validate(ctx, msg);
         self._transfer_estimate_remain_value(ctx, msg);
-        self.balance = self.balance - msg.amount;
         self._transfer_jetton(ctx, msg);
     }
 
@@ -178,7 +179,7 @@ trait JettonWallet {
 
     virtual inline fun _transfer_validate(ctx: Context, msg: JettonTransfer) {
         require(ctx.sender == self.owner, "Only owner can call this function");
-        require(self.balance >= msg.amount, "Not enough jettons in wallet");
+        
     }
 
     virtual inline fun _transfer_estimate_remain_value(ctx: Context, msg: JettonTransfer) {
