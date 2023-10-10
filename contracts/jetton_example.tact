@@ -23,6 +23,11 @@ contract ExampleJettonMaster with JettonMaster, Deployable {
     owner: Address;
     jetton_content: Cell;
 
+    init(owner: Address, jetton_content: Cell){
+        self.owner = owner;
+        self.jetton_content = jetton_content;
+    }
+
     receive("Mint:1") {
         let ctx: Context = context();
         let msg: JettonMint = JettonMint{
@@ -41,8 +46,5 @@ contract ExampleJettonMaster with JettonMaster, Deployable {
         return initOf ExampleJettonWallet(owner_address, myAddress());
     }
 
-    init(owner: Address, jetton_content: Cell){
-        self.owner = owner;
-        self.jetton_content = jetton_content;
-    }
+
 }
