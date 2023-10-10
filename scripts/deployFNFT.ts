@@ -1,5 +1,5 @@
 import { beginCell, toNano } from 'ton-core';
-import { FNFTCollection, RoyaltyParams } from '../wrappers/FNFT';
+import { FNFTCollection, RoyaltyParams } from '../wrappers/FNFTCollection';
 import { NetworkProvider } from '@ton-community/blueprint';
 
 const OFFCHAIN_TAG = 0x01;
@@ -11,15 +11,14 @@ export async function run(provider: NetworkProvider) {
     const collectionContent = beginCell().storeInt(OFFCHAIN_TAG, 8).storeStringRefTail(BASE_URL).endCell();
     const royaltyParams: RoyaltyParams = {
         $$type: 'RoyaltyParams',
-        numerator: 1n,
+        numerator: 35n,
         denominator: 100n,
         destination: deployer.address!,
     };
-    const nFTCollection = provider.open(
+    const nftCollection = provider.open(
         await FNFTCollection.fromInit(deployer.address!, collectionContent, royaltyParams)
     );
-
-    await nFTCollection.send(
+    await nftCollection.send(
         provider.sender(),
         {
             value: toNano('0.05'),
@@ -29,6 +28,5 @@ export async function run(provider: NetworkProvider) {
             queryId: 0n,
         }
     );
-
-    await provider.waitForDeploy(nFTCollection.address);
+    await provider.waitForDeploy(nftCollection.address);
 }

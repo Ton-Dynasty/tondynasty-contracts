@@ -32,7 +32,9 @@ contract ExampleJettonMaster with JettonMaster, Deployable {
         let ctx: Context = context();
         let msg: JettonMint = JettonMint{
             receiver: ctx.sender,
-            amount: ton("1")
+            amount: ton("1"),
+            forward_ton_amount: 0,
+            forward_payload: emptySlice()
         };
         self._mint_validate(ctx, msg);
         self._mint(ctx, msg);

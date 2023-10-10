@@ -129,7 +129,7 @@ trait NFTItemStandard {
             }); 
         }
         remain = remain - ctx.readForwardFee(); 
-        if (msg.response_destination != newAddress(0, 0)) { 
+        if (msg.response_destination != newAddress(0, 0) && remain > msg.forward_amount) { 
             send(SendParameters{ 
                 to: msg.response_destination,
                 value: remain - msg.forward_amount,

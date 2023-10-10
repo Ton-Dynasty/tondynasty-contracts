@@ -19,6 +19,8 @@ struct JettonData {
 message JettonMint {
     receiver: Address;  // address of receiver
     amount: Int;        // amount of jettons to mint
+    forward_ton_amount: Int as coins;
+    forward_payload: Slice as remaining;
 }
 
 trait JettonMaster {
@@ -70,8 +72,8 @@ trait JettonMaster {
                 amount: msg.amount,
                 response_address: ctx.sender,
                 from: myAddress(),
-                forward_ton_amount: 0,
-                forward_payload: emptySlice()
+                forward_ton_amount: msg.forward_ton_amount,
+                forward_payload: msg.forward_payload
             }.toCell(),
             code: initCode.code,
             data: initCode.data
@@ -92,7 +94,7 @@ trait JettonMaster {
                 to: msg.response_destination,
                 value: 0,
                 bounce: false,
-                mode: SendRemainingValue + SendIgnoreErrors,
+                mode: SendRemainingValue + SendIgnoreErrors
             });
         }
     }
