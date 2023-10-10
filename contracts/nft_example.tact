@@ -2,7 +2,7 @@ import "@stdlib/deploy";
 import "./packages/token/nft/NFTCollection";
 import "./packages/token/nft/extensions/NFTRoyalty";
 import "./packages/token/nft/NFTItem";
-import "./packages/utils/GasEstimate";
+import "./packages/utils/Estimatable";
 
 contract ExampleNFTCollection with NFTCollectionStandard, NFTRoyaltyStandard, Estimatable, Deployable {
     next_item_index: Int as uint32 = 0; // if next_item_index is not -1, means sequential minting is enabled. We want a sequential minting in this example so we set it to uint32.
