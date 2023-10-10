@@ -73,7 +73,7 @@ trait JettonWallet {
     receive(msg: JettonTransfer) {
         let ctx: Context = context();
         self.balance = self.balance - msg.amount;
-        require(self.balance >= msg.amount, "Not enough jettons in wallet");
+        require(self.balance >= 0, "JettonWallet: Not enough jettons to transfer");
         self._transfer_validate(ctx, msg);
         self._transfer_estimate_remain_value(ctx, msg);
         self._transfer_jetton(ctx, msg);
@@ -81,15 +81,18 @@ trait JettonWallet {
 
     receive(msg: JettonBurn) {
         let ctx: Context = context();
+        self.balance = self.balance - msg.amount;
+        require(self.balance >= 0, "JettonWallet: Not enough balance to burn tokens");
         self._burn_validate(ctx, msg);
         self._burn_tokens(ctx, msg);
     }
 
     receive(msg: JettonInternalTransfer) {
         let ctx: Context = context();
+        self.balance = self.balance + msg.amount;
+        require(self.balance >= 0, "JettonWallet: Not allow negative balance after internal transfer");
         self._internal_transfer_validate(ctx, msg);
         let remain: Int = self._internal_transfer_estimate_remain_value(ctx, msg);
-        self.balance = self.balance + msg.amount;
         if (msg.forward_ton_amount > 0){
             self._internal_transfer_notification(ctx, msg);
         }
@@ -112,6 +115,7 @@ trait JettonWallet {
     abstract inline fun calculate_jetton_wallet_init(owner_address: Address): StateInit;
 
     virtual inline fun _internal_transfer_validate(ctx: Context, msg: JettonInternalTransfer) {
+        
         if(ctx.sender != self.jetton_master){
             let init: StateInit = self.calculate_jetton_wallet_init(msg.from);
             require(ctx.sender == contractAddress(init), "JettonWallet: Only Jetton master or Jetton wallet can call this function");
@@ -119,19 +123,18 @@ trait JettonWallet {
     }
 
     virtual inline fun _internal_transfer_estimate_remain_value(ctx: Context, msg: JettonInternalTransfer): Int {
-        let remain: Int = ctx.value;    
-        let tonBalanceBeforeMsg: Int = myBalance() - remain;
+        let tonBalanceBeforeMsg: Int = myBalance() - ctx.value;
         let storage_fee: Int =  self.minTonsForStorage - min(tonBalanceBeforeMsg, self.minTonsForStorage);
-        return remain - (storage_fee + self.gasConsumption) - (ctx.readForwardFee() + msg.forward_ton_amount);
+        return ctx.value - (storage_fee + self.gasConsumption) - (ctx.readForwardFee() + msg.forward_ton_amount);
     }
 
     virtual inline fun _internal_transfer_notification(ctx: Context, msg: JettonInternalTransfer) {
         if (msg.forward_ton_amount > 0) {
             send(SendParameters{
                 to: self.owner,
-                value: 0,
-                mode: SendRemainingValue,
-                bounce: true,
+                value: msg.forward_ton_amount,
+                mode: SendPayGasSeparately,
+                bounce: false,
                 body: JettonTransferNotification{
                     query_id: msg.query_id,
                     amount: msg.amount,
@@ -157,12 +160,10 @@ trait JettonWallet {
     }
     
     virtual inline fun _burn_validate(ctx: Context, msg: JettonBurn) {
-        require(ctx.sender == self.owner, "JettonWalletBurnable: Only owner can burn tokens");
+        require(ctx.sender == self.owner, "JettonWallet: Only owner can burn tokens");
     }
 
     virtual inline fun _burn_tokens(ctx: Context, msg: JettonBurn) {
-        self.balance = self.balance - msg.amount;
-        require(self.balance >= 0, "JettonWalletBurnable: Not enough balance to burn tokens");
         send(SendParameters{
             to: self.jetton_master,
             value: 0,
@@ -187,7 +188,7 @@ trait JettonWallet {
         if (msg.forward_ton_amount > 0) {
             fwd_count = 2;
         }
-        require(ctx.value > (fwd_count * ctx.readForwardFee() + 2 * self.gasConsumption + self.minTonsForStorage), "Not enough funds to transfer");
+        require(ctx.value > fwd_count * ctx.readForwardFee() + 2 * self.gasConsumption + self.minTonsForStorage, "Not enough funds to transfer");
     }
 
     virtual inline fun _transfer_jetton(ctx: Context, msg: JettonTransfer) {

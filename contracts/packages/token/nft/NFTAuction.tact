@@ -29,8 +29,8 @@ trait NFTAuctionStandard {
 
     // @dev Initializes the auction when called by the owner
     receive(msg: BuildNftAuction) {
-        let cxt: Context = context();
-        if(cxt.sender != self.owner) {
+        let ctx: Context = context();
+        if(ctx.sender != self.owner) {
             throw(1001); // Only owner can build nft auction contract
         }
         if(self.isInitialized != 0) {
@@ -52,12 +52,12 @@ trait NFTAuctionStandard {
             throw(1005); // Auction ended.
         }
 
-        let cxt: Context = context();
-        let buyer: Address = cxt.sender;
+        let ctx: Context = context();
+        let buyer: Address = ctx.sender;
         if(buyer == self.auctionInfo.nftSeller) {
             throw(1006); //NFT Seller cannot bid.
         }
-        let bidValue: Int = cxt.value;
+        let bidValue: Int = ctx.value;
         let buyNowPrice: Int = self.auctionInfo.buyNowPrice;
         if(bidValue >= buyNowPrice) {
             self.auctionInfo.nftHighestBid = bidValue;
@@ -85,7 +85,7 @@ trait NFTAuctionStandard {
             body: "Pay bid money back to the prevNftHighestBidder".asComment()
         });
         // Update highest bid and Transfer ton back to previous highest bidder.
-        self.auctionInfo.nftHighestBidder = cxt.sender;
+        self.auctionInfo.nftHighestBidder = ctx.sender;
         self.auctionInfo.nftHighestBid = bidValue;
         // If bid value is greater than reserve price, then the auction is being started.
         if(bidValue > self.auctionInfo.reservePrice) {
@@ -112,8 +112,8 @@ trait NFTAuctionStandard {
     }
 
     receive(msg: ReviseAuction) {
-        let cxt: Context = context();
-        if(cxt.sender != self.owner) {
+        let ctx: Context = context();
+        if(ctx.sender != self.owner) {
             throw(1001); // Only owner can build nft auction contract
         }
 
@@ -210,8 +210,8 @@ trait NFTAuctionStandard {
 
     // @dev Initializes the auction end time to 0, allowing the seller to auction the NFT again in the future
     virtual inline fun _init_auction_end() {
-        let cxt: Context = context();
-        if(cxt.sender != self.owner) {
+        let ctx: Context = context();
+        if(ctx.sender != self.owner) {
             throw(1001); // Only owner can init auction end time.
         }
         self.auctionBidPeriod = 0;
