@@ -12,15 +12,15 @@ struct JettonData {
 }
 
 message JettonMint {
-    receiver: Address;
-    amount: Int;
+    receiver: Address;  // address of receiver
+    amount: Int;        // amount of jettons to mint
 }
 
 trait JettonMaster {
-    total_supply: Int;
-    mintable: Bool;
-    owner: Address;
-    jetton_content: Cell;
+    total_supply: Int;      // the total number of issued jettons
+    mintable: Bool;         // flag which indicates whether minting is allowed
+    owner: Address;         // owner of this jetton
+    jetton_content: Cell;   // data in accordance to Token Data Standard #64
 
     //********************************************//
     //                  Messages                  //
@@ -46,11 +46,13 @@ trait JettonMaster {
     // @note one MUST override this function in inherited contract
     abstract inline fun calculate_jetton_wallet_init(owner_address: Address): StateInit;
 
+    // @dev  _mint_validate conduct some custom validating before mint
     virtual inline fun _mint_validate(ctx: Context, msg: JettonMint) {
         require(ctx.sender == self.owner, "JettonMaster: Sender is not a Jetton owner");
         require(self.mintable, "JettonMaster: Jetton is not mintable");
     }
 
+    // @dev  _mint mint jettons
     virtual inline fun _mint(ctx: Context, msg: JettonMint) {
         let initCode: StateInit = self.calculate_jetton_wallet_init(msg.receiver);
         self.total_supply = self.total_supply + msg.amount;
@@ -72,11 +74,13 @@ trait JettonMaster {
         });
     }
 
+    // @dev  _burn_notification_validate perform some custom validation after receiving JettonBurnNotification sent from Jetton wallet
     inline fun _burn_notification_validate(ctx: Context, msg: JettonBurnNotification) {
         let initCode: StateInit = self.calculate_jetton_wallet_init(msg.sender);
         require(ctx.sender == contractAddress(initCode), "Sender is not a Jetton wallet");
     } 
 
+    // @dev  _burn_notification_send_notify send notification to wallet after receiving JettonBurnNotification
     inline fun _burn_notification_send_notify(ctx: Context, msg: JettonBurnNotification) {
         if(msg.response_destination != newAddress(0, 0)){
             send(SendParameters{
