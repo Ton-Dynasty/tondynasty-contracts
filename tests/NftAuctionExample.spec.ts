@@ -234,8 +234,8 @@ describe('NFTAuctionExample', () => {
             success: true,
         });
 
-        const auctionInfo: AuctionInfo = await nftAuctionMarket.getGetAuctionInfo(alice.address, nftId0Address);
-        const nftAuctionAddress: Address = await nftAuctionMarket.getGetNftAuctionAddress(nftId0Address, auctionInfo);
+        //const auctionInfo: AuctionInfo = await nftAuctionMarket.getGetAuctionInfo(alice.address, nftId0Address);
+        const nftAuctionAddress: Address = await nftAuctionMarket.getGetNftAuctionAddress(nftId0Address, alice.address);
         nftAuction = blockchain.openContract(await ExampleNFTAuction.fromAddress(nftAuctionAddress));
 
         // Check NftAuctionMarket send SetUpAuction message to NftAuction
@@ -273,8 +273,8 @@ describe('NFTAuctionExample', () => {
         const setUpAuctionResult = await setupNftAuction(nftCollection, nftAuctionMarket, alice);
         //printTransactionFees(setUpAuctionResult.transactions);
 
-        const auctionInfo: AuctionInfo = await nftAuctionMarket.getGetAuctionInfo(alice.address, nftId0Address);
-        const nftAuctionAddress: Address = await nftAuctionMarket.getGetNftAuctionAddress(nftId0Address, auctionInfo);
+        //const auctionInfo: AuctionInfo = await nftAuctionMarket.getGetAuctionInfo(alice.address, nftId0Address);
+        const nftAuctionAddress: Address = await nftAuctionMarket.getGetNftAuctionAddress(nftId0Address, alice.address);
         nftAuction = blockchain.openContract(await ExampleNFTAuction.fromAddress(nftAuctionAddress));
         /* Start to make bids */
 
@@ -456,8 +456,8 @@ describe('NFTAuctionExample', () => {
         const transferResult = await transferNftToAuctionMarket(nftCollection, nftAuctionMarket, alice);
         const setUpAuctionResult = await setupNftAuction(nftCollection, nftAuctionMarket, alice);
         //printTransactionFees(setUpAuctionResult.transactions);
-        const auctionInfo: AuctionInfo = await nftAuctionMarket.getGetAuctionInfo(alice.address, nftId0Address);
-        const nftAuctionAddress: Address = await nftAuctionMarket.getGetNftAuctionAddress(nftId0Address, auctionInfo);
+        //const auctionInfo: AuctionInfo = await nftAuctionMarket.getGetAuctionInfo(alice.address, nftId0Address);
+        const nftAuctionAddress: Address = await nftAuctionMarket.getGetNftAuctionAddress(nftId0Address, alice.address);
         nftAuction = blockchain.openContract(await ExampleNFTAuction.fromAddress(nftAuctionAddress));
         /* Start to make bids */
         // First bid

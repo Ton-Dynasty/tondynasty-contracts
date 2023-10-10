@@ -16,25 +16,39 @@ contract ExampleNFTAuctionMarket with Deployable, NFTAuctionMarketStandard {
     }
 
     // @dev Retrieves the initial state for the NFT auction contract.
-    override get fun _nft_auction_init(nftAddress: Address, auctionInfo: AuctionInfo): StateInit {
-        return initOf ExampleNFTAuction(myAddress(), nftAddress, auctionInfo);
+    override get fun _nft_auction_init(nftAddress: Address, seller: Address): StateInit {
+        return initOf ExampleNFTAuction(myAddress(), nftAddress, seller);
     }
 }
 
 contract ExampleNFTAuction with NFTAuctionStandard {
     owner: Address;
     nftAddress: Address;
+    seller: Address;
     auctionInfo: AuctionInfo;
     auctionBidPeriod: Int;
     isInitialized: Int;
     auctionEndTime: Int;
 
-    init(owner: Address, nftAddress: Address, auctionInfo: AuctionInfo) {
+    init(owner: Address, nftAddress: Address, seller: Address) {
         self.owner = owner;
         self.nftAddress = nftAddress;
-        self.auctionInfo = auctionInfo;
+        self.seller = seller;
+        //self.auctionInfo = auctionInfo;
         self.auctionBidPeriod = 0;
         self.auctionEndTime = 0;
         self.isInitialized = 0;
+        self.auctionInfo = AuctionInfo {
+            bidIncreasePercentage: 0,
+            auctionBidPeriod: 0,
+            auctionPeriod: 0,
+            reservePrice: 0,
+            buyNowPrice: 0,
+            nftHighestBid: 0,
+            nftHighestBidder: newAddress(0, 0),
+            nftSeller: seller,
+            whitelistedBuyer: seller,
+            nftRecipient: seller
+        };
     }
 }
