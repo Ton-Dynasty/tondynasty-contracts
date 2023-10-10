@@ -188,7 +188,7 @@ trait JettonWallet {
         if (msg.forward_ton_amount > 0) {
             fwd_count = 2;
         }
-        require(ctx.value > (fwd_count * ctx.readForwardFee() + 2 * self.gasConsumption + self.minTonsForStorage), "Not enough funds to transfer");
+        require(ctx.value > fwd_count * ctx.readForwardFee() + 2 * self.gasConsumption + self.minTonsForStorage, "Not enough funds to transfer");
     }
 
     virtual inline fun _transfer_jetton(ctx: Context, msg: JettonTransfer) {
