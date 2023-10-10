@@ -11,15 +11,15 @@ export async function run(provider: NetworkProvider) {
     const collectionContent = beginCell().storeInt(OFFCHAIN_TAG, 8).storeStringRefTail(BASE_URL).endCell();
     const royaltyParams: RoyaltyParams = {
         $$type: 'RoyaltyParams',
-        numerator: 1n,
+        numerator: 3n,
         denominator: 100n,
         destination: deployer.address!,
     };
-    const nFTCollection = provider.open(
+    const nftCollection = provider.open(
         await ExampleNFTCollection.fromInit(deployer.address!, collectionContent, royaltyParams)
     );
 
-    await nFTCollection.send(
+    await nftCollection.send(
         provider.sender(),
         {
             value: toNano('0.05'),
@@ -30,5 +30,5 @@ export async function run(provider: NetworkProvider) {
         }
     );
 
-    await provider.waitForDeploy(nFTCollection.address);
+    await provider.waitForDeploy(nftCollection.address);
 }

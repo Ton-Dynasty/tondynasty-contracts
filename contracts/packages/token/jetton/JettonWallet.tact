@@ -125,7 +125,11 @@ trait JettonWallet {
     virtual inline fun _internal_transfer_estimate_remain_value(ctx: Context, msg: JettonInternalTransfer): Int {
         let tonBalanceBeforeMsg: Int = myBalance() - ctx.value;
         let storage_fee: Int =  self.minTonsForStorage - min(tonBalanceBeforeMsg, self.minTonsForStorage);
-        return ctx.value - (storage_fee + self.gasConsumption) - (ctx.readForwardFee() + msg.forward_ton_amount);
+        let remain: Int = ctx.value - (storage_fee + self.gasConsumption);
+        if (msg.forward_ton_amount > 0) {
+            remain = remain - (ctx.readForwardFee() + msg.forward_ton_amount);
+        }
+        return remain;
     }
 
     virtual inline fun _internal_transfer_notification(ctx: Context, msg: JettonInternalTransfer) {
