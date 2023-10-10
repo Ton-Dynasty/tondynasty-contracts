@@ -16,4 +16,8 @@ trait Lockable {
     virtual inline fun ensureUnlocked() {
         require(!self.is_locked, "Lockable: Object is locked");
     }
+
+    get fun is_locked(): Bool {
+        return self.is_locked;
+    }
 }
