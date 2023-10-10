@@ -129,7 +129,7 @@ trait JettonWallet {
             send(SendParameters{
                 to: self.owner,
                 value: 0,
-                mode: msg.forward_ton_amount,
+                mode: SendRemainingValue,
                 bounce: true,
                 body: JettonTransferNotification{
                     query_id: msg.query_id,
@@ -147,10 +147,10 @@ trait JettonWallet {
                 to: msg.response_address,
                 value: remain,
                 bounce: false,
+                mode: SendIgnoreErrors + SendPayGasSeparately,
                 body: JettonExcesses{
                     query_id: msg.query_id
-                }.toCell(),
-                mode: SendIgnoreErrors
+                }.toCell()
             });
         }
     }
@@ -197,6 +197,7 @@ trait JettonWallet {
             to: receiver,
             value: 0,
             bounce: true,
+            mode: SendRemainingValue,
             body: JettonInternalTransfer{
                 query_id: msg.query_id,
                 amount: msg.amount,
