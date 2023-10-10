@@ -62,7 +62,7 @@ trait JettonMaster {
             body: JettonInternalTransfer{ 
                 query_id: 0,
                 amount: msg.amount,
-                response_address: self.owner,
+                response_address: ctx.sender,
                 from: myAddress(),
                 forward_ton_amount: 0,
                 forward_payload: emptyCell()
