@@ -261,7 +261,7 @@ describe('NFTAuctionExample', () => {
             from: alice.address,
             to: nftAuctionMarket.address,
             success: false,
-            exitCode: 1008, // Auction already started
+            exitCode: 58706, // Auction already started
         });
     });
 
@@ -294,7 +294,7 @@ describe('NFTAuctionExample', () => {
             from: alice.address,
             to: nftAuction.address,
             success: false,
-            exitCode: 1006, // Seller cannot bid
+            exitCode: 37031, // Seller cannot bid
         });
 
         // First bid: bid value is not enough to start the auction
@@ -344,7 +344,7 @@ describe('NFTAuctionExample', () => {
             from: buyer2.address,
             to: nftAuction.address,
             success: false,
-            exitCode: 1007, // Bid is too low
+            exitCode: 3724, // Bid is too low
         });
 
         // Third bid: Bid is enough to start the auction and it becomes the highest bid
@@ -383,7 +383,7 @@ describe('NFTAuctionExample', () => {
         expect(settleAuctionResult.transactions).toHaveTransaction({
             from: buyer3.address,
             to: nftAuction.address,
-            exitCode: 1000, // Auction not yet ended.
+            exitCode: 45065, // Auction not yet ended.
         });
         blockchain.now = Math.floor(Date.now() / 1000) + 2 * 24 * 60 * 60;
 
@@ -445,7 +445,7 @@ describe('NFTAuctionExample', () => {
             from: buyer4.address,
             to: nftAuction.address,
             success: false,
-            exitCode: 1005, // Auction ended
+            exitCode: 46984, // Auction ended
         });
     });
 
