@@ -74,8 +74,8 @@ trait JettonWallet {
         let ctx: Context = context();
         self._transfer_validate(ctx, msg);
         self._transfer_estimate_remain_value(ctx, msg);
-        self._transfer_jetton(ctx, msg);
         self.balance = self.balance - msg.amount;
+        self._transfer_jetton(ctx, msg);
     }
 
     receive(msg: JettonBurn) {
@@ -147,7 +147,7 @@ trait JettonWallet {
                 to: msg.response_address,
                 value: remain,
                 bounce: false,
-                mode: SendIgnoreErrors + SendPayGasSeparately,
+                mode: SendIgnoreErrors,
                 body: JettonExcesses{
                     query_id: msg.query_id
                 }.toCell()
@@ -191,7 +191,7 @@ trait JettonWallet {
     }
 
     virtual inline fun _transfer_jetton(ctx: Context, msg: JettonTransfer) {
-        let init: StateInit = self.calculate_jetton_wallet_init(self.owner);
+        let init: StateInit = self.calculate_jetton_wallet_init(msg.destination);
         let receiver: Address = contractAddress(init);
         send(SendParameters{
             to: receiver,
