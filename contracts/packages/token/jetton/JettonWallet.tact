@@ -182,12 +182,11 @@ trait JettonWallet {
     }
 
     virtual inline fun _transfer_estimate_remain_value(ctx: Context, msg: JettonTransfer) {
-        let remain: Int = ctx.value;
         let fwd_count: Int = 1;
         if (msg.forward_ton_amount > 0) {
             fwd_count = 2;
         }
-        require(remain > (fwd_count * ctx.readForwardFee() + 2 * (self.gasConsumption + self.minTonsForStorage)), "Not enough funds to transfer");
+        require(ctx.value > (fwd_count * ctx.readForwardFee() + 2 * self.gasConsumption + self.minTonsForStorage), "Not enough funds to transfer");
     }
 
     virtual inline fun _transfer_jetton(ctx: Context, msg: JettonTransfer) {
