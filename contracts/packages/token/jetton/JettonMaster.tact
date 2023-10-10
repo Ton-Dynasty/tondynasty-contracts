@@ -33,8 +33,7 @@ trait JettonMaster {
     receive(msg: JettonBurnNotification) {
         let ctx: Context = context();
         self._burn_notification_validate(ctx, msg);
-        self.total_supply = self.total_supply - msg.amount;
-        self._burn_notification_send_notify(ctx, msg);
+        self._burn_notification(ctx, msg);
     }
 
     receive(msg: JettonMint) {
@@ -85,15 +84,15 @@ trait JettonMaster {
         require(ctx.sender == contractAddress(initCode), "Sender is not a Jetton wallet");
     } 
 
-    // @dev  _burn_notification_send_notify send notification to wallet after receiving JettonBurnNotification
-    inline fun _burn_notification_send_notify(ctx: Context, msg: JettonBurnNotification) {
+    // @dev  _burn_notification dwindles total_supply and send notification to wallet after receiving JettonBurnNotification
+    inline fun _burn_notification(ctx: Context, msg: JettonBurnNotification) {
+        self.total_supply = self.total_supply - msg.amount;
         if(msg.response_destination != newAddress(0, 0)){
             send(SendParameters{
                 to: msg.response_destination,
                 value: 0,
                 bounce: false,
                 mode: SendRemainingValue + SendIgnoreErrors,
-                body: JettonExcesses{ query_id: msg.query_id }.toCell()
             });
         }
     }
