@@ -13,7 +13,7 @@ contract ExampleJettonWallet with JettonWallet {
     }
 
     override inline fun calculate_jetton_wallet_init(owner_address: Address): StateInit {
-        return initOf ExampleJettonWallet(self.jetton_master, owner_address);
+        return initOf ExampleJettonWallet(owner_address, self.jetton_master);
     }
 }
 
