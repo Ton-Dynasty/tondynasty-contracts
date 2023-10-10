@@ -14,6 +14,7 @@ trait NFTAuctionStandard {
 
     owner: Address;
     nftAddress: Address;
+    seller: Address;
     auctionInfo: AuctionInfo;
     auctionBidPeriod: Int;
     isInitialized: Int;
@@ -27,7 +28,7 @@ trait NFTAuctionStandard {
     receive() {}
 
     // @dev Initializes the auction when called by the owner
-    receive("BuildNftAuction") {
+    receive(msg: BuildNftAuction) {
         let cxt: Context = context();
         if(cxt.sender != self.owner) {
             throw(1001); // Only owner can build nft auction contract
@@ -35,6 +36,10 @@ trait NFTAuctionStandard {
         if(self.isInitialized != 0) {
             throw(1004); // Contract is already initialized
         }
+        if(msg.auctionInfo.reservePrice > msg.auctionInfo.buyNowPrice) {
+            throw(1010); // BuyNowPrice must be greater than reservePrice.
+        }
+        self.auctionInfo = msg.auctionInfo;
         self.isInitialized = 1;
         self.auctionBidPeriod = 0;
         self.auctionEndTime = 0;
