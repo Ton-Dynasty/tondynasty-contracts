@@ -1,7 +1,7 @@
 import { Blockchain, SandboxContract, TreasuryContract, printTransactionFees } from '@ton-community/sandbox';
 import { Cell, beginCell, toNano } from 'ton-core';
 import { ExampleNFTCollection, RoyaltyParams } from '../wrappers/NFTExample';
-import { ExampleJettonMaster } from '../wrappers/ExampleJettonMaster';
+import { ExampleJettonMaster, JettonBurn } from '../wrappers/ExampleJettonMaster';
 import { ExampleJettonWallet, JettonTransfer } from '../wrappers/ExampleJettonWallet';
 import '@ton-community/test-utils';
 
@@ -42,6 +42,7 @@ describe('NFTExample', () => {
     });
 
     it('should mint 1 token to Alice', async () => {
+        // Mint 1 token to Alice
         const mintyResult = await jettonMaster.send(
             alice.getSender(),
             {
@@ -80,6 +81,7 @@ describe('NFTExample', () => {
     });
 
     it('should Alice send 1 token to Bob', async () => {
+        // Mint 1 token to Alice first to build her jetton wallet
         await jettonMaster.send(
             alice.getSender(),
             {
@@ -87,6 +89,11 @@ describe('NFTExample', () => {
             },
             'Mint:1'
         );
+        // Alice's jetton wallet address
+        const aliceWalletAddress = await jettonMaster.getGetWalletAddress(alice.address);
+        // Alice's jetton wallet
+        const aliceJettonContract = blockchain.openContract(await ExampleJettonWallet.fromAddress(aliceWalletAddress));
+
         // Mint 1 token to Bob first to build his jetton wallet
         const bob = await blockchain.treasury('bob');
         const mintyResult = await jettonMaster.send(
@@ -96,15 +103,13 @@ describe('NFTExample', () => {
             },
             'Mint:1'
         );
+        // Bob's jetton wallet address
         const bobWalletAddress = await jettonMaster.getGetWalletAddress(bob.address);
+        // Bob's jetton wallet
         const bobJettonContract = blockchain.openContract(await ExampleJettonWallet.fromAddress(bobWalletAddress));
         const bobBalanceBefore = (await bobJettonContract.getGetWalletData()).balance;
-        //printTransactionFees(mintyResult.transactions);
 
-        // Alice send 1 token to Bob
-        const aliceWalletAddress = await jettonMaster.getGetWalletAddress(alice.address);
-        const aliceJettonContract = blockchain.openContract(await ExampleJettonWallet.fromAddress(aliceWalletAddress));
-
+        // Alice transfer 1 token to Bob
         const jettonTransfer: JettonTransfer = {
             $$type: 'JettonTransfer',
             query_id: 0n,
@@ -148,5 +153,66 @@ describe('NFTExample', () => {
         // Check that Bob's jetton wallet balance is added 1
         const bobBalanceAfter = (await bobJettonContract.getGetWalletData()).balance;
         expect(bobBalanceAfter).toEqual(bobBalanceBefore + 1n);
+    });
+
+    it('should Alice burn 1 token', async () => {
+        // Mint 1 token to Alice first to build her jetton wallet
+        const mintyResult = await jettonMaster.send(
+            alice.getSender(),
+            {
+                value: toNano('1'),
+            },
+            'Mint:1'
+        );
+
+        const jettonBurn: JettonBurn = {
+            $$type: 'JettonBurn',
+            query_id: 0n,
+            amount: 1n,
+            response_destination: alice.address,
+            custom_payload: null,
+        };
+
+        // Alice's jetton wallet address
+        const aliceWalletAddress = await jettonMaster.getGetWalletAddress(alice.address);
+        // Alice's jetton wallet
+        const aliceJettonContract = blockchain.openContract(await ExampleJettonWallet.fromAddress(aliceWalletAddress));
+        // Alice's jetton wallet balance before burning
+        const aliceBalanceBefore = (await aliceJettonContract.getGetWalletData()).balance;
+
+        // Alice burn 1 token
+        const burnResult = await aliceJettonContract.send(
+            alice.getSender(),
+            {
+                value: toNano('1'),
+            },
+            jettonBurn
+        );
+        //printTransactionFees(burnResult.transactions);
+
+        // Check that Alice send JettonBurn msg to her jetton wallet
+        expect(burnResult.transactions).toHaveTransaction({
+            from: alice.address,
+            to: aliceWalletAddress,
+            success: true,
+        });
+
+        // Check that Alice's jetton wallet send JettonBurnNotification msg to JettonMaster
+        expect(burnResult.transactions).toHaveTransaction({
+            from: aliceWalletAddress,
+            to: jettonMaster.address,
+            success: true,
+        });
+
+        // Check that JettonMaster send JettonExcesses msg to Alice
+        expect(burnResult.transactions).toHaveTransaction({
+            from: jettonMaster.address,
+            to: alice.address,
+            success: true,
+        });
+
+        // Check that Alice's jetton wallet balance is subtracted 1
+        const aliceBalanceAfter = (await aliceJettonContract.getGetWalletData()).balance;
+        expect(aliceBalanceAfter).toEqual(aliceBalanceBefore - 1n);
     });
 });
