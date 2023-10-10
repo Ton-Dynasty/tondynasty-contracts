@@ -73,7 +73,7 @@ trait JettonWallet {
     receive(msg: JettonTransfer) {
         let ctx: Context = context();
         self.balance = self.balance - msg.amount;
-        require(self.balance >= msg.amount, "Not enough jettons in wallet");
+        require(self.balance >= 0, "JettonTransfer: Not enough jettons in wallet");
         self._transfer_validate(ctx, msg);
         self._transfer_estimate_remain_value(ctx, msg);
         self._transfer_jetton(ctx, msg);
@@ -87,9 +87,11 @@ trait JettonWallet {
 
     receive(msg: JettonInternalTransfer) {
         let ctx: Context = context();
+        self.balance = self.balance + msg.amount;
+        require(self.balance >= 0, "JettonInternalTransfer: Not allow negative balance");
+        
         self._internal_transfer_validate(ctx, msg);
         let remain: Int = self._internal_transfer_estimate_remain_value(ctx, msg);
-        self.balance = self.balance + msg.amount;
         if (msg.forward_ton_amount > 0){
             self._internal_transfer_notification(ctx, msg);
         }
@@ -112,6 +114,7 @@ trait JettonWallet {
     abstract inline fun calculate_jetton_wallet_init(owner_address: Address): StateInit;
 
     virtual inline fun _internal_transfer_validate(ctx: Context, msg: JettonInternalTransfer) {
+        
         if(ctx.sender != self.jetton_master){
             let init: StateInit = self.calculate_jetton_wallet_init(msg.from);
             require(ctx.sender == contractAddress(init), "JettonWallet: Only Jetton master or Jetton wallet can call this function");
@@ -119,19 +122,18 @@ trait JettonWallet {
     }
 
     virtual inline fun _internal_transfer_estimate_remain_value(ctx: Context, msg: JettonInternalTransfer): Int {
-        let remain: Int = ctx.value;    
-        let tonBalanceBeforeMsg: Int = myBalance() - remain;
+        let tonBalanceBeforeMsg: Int = myBalance() - ctx.value;
         let storage_fee: Int =  self.minTonsForStorage - min(tonBalanceBeforeMsg, self.minTonsForStorage);
-        return remain - (storage_fee + self.gasConsumption) - (ctx.readForwardFee() + msg.forward_ton_amount);
+        return ctx.value - (storage_fee + self.gasConsumption) - (ctx.readForwardFee() + msg.forward_ton_amount);
     }
 
     virtual inline fun _internal_transfer_notification(ctx: Context, msg: JettonInternalTransfer) {
         if (msg.forward_ton_amount > 0) {
             send(SendParameters{
                 to: self.owner,
-                value: 0,
-                mode: SendRemainingValue,
-                bounce: true,
+                value: msg.forward_ton_amount,
+                mode: SendPayGasSeparately,
+                bounce: false,
                 body: JettonTransferNotification{
                     query_id: msg.query_id,
                     amount: msg.amount,
