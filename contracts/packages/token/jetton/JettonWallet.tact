@@ -74,8 +74,8 @@ trait JettonWallet {
         let ctx: Context = context();
         self._transfer_validate(ctx, msg);
         self._transfer_estimate_remain_value(ctx, msg);
-        self._transfer_jetton(ctx, msg);
         self.balance = self.balance - msg.amount;
+        self._transfer_jetton(ctx, msg);
     }
 
     receive(msg: JettonBurn) {
