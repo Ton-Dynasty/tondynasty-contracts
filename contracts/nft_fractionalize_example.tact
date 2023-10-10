@@ -167,7 +167,7 @@ contract FNFTCollection with NFTCollectionStandard, NFTRoyaltyStandard, Estimata
         value3.append(index.toString());
         content_cell.set(key_hash3, beginCell().storeUint(0, 8).storeRef(value3.toCell()).endCell());
         
-        let jetton_content: Cell = beginCell().storeInt(0, 8).storeRef(content_cell.asCell()).endCell();
+        let jetton_content: Cell = beginCell().storeInt(0, 8).storeRef(content_cell.asCell()!!).endCell();
 
         return FractionParams {
             max_supply: ton("100"),
