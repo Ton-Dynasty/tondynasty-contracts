@@ -31,6 +31,7 @@ contract ExampleJettonMaster with JettonMaster, Deployable {
     receive("Mint:1") {
         let ctx: Context = context();
         let msg: JettonMint = JettonMint{
+            origin: ctx.sender,
             receiver: ctx.sender,
             amount: ton("1"),
             forward_ton_amount: 0,

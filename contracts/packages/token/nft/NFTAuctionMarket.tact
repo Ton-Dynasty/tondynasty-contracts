@@ -7,6 +7,7 @@
     [Official Implementation](https://github.com/ton-blockchain/token-contract/blob/991bdb4925653c51b0b53ab212c53143f71f5476/nft/nft-sale.fc)
     [NFT Auction Template](https://github.com/avolabs-io/nft-auction)
 */
+import "./NFTItem";
 
 message SetUpAuction {
     nftAddress: Address;            // NFT address to be auctioned
@@ -59,22 +60,6 @@ struct AuctionInfo {
     nftSeller: Address;                     // the address of the seller
     whitelistedBuyer: Address;              // the seller can specify a whitelisted address for a sale (this is effectively a direct sale)
     nftRecipient: Address;                  // the bidder can specify a recipient for the NFT if their bid is successful
-}
-
-/* For NFT Standard Message */
-message(0x5fcc3d14) Transfer { 
-    query_id: Int as uint64;                // arbitrary request number
-    new_owner: Address;                     // new owner of the NFT item
-    response_destination: Address;          // address where to send a response with confirmation of a successful transfer and the rest of the incoming message coins if not empty address
-    custom_payload: Cell?;                  // optional custom data
-    forward_amount: Int as coins;           // the amount of nanotons to be sent to the new owner
-    forward_payload: Slice as remaining;     // optional custom data that should be sent to the new owner
-}
-
-message(0x05138d91) OwnershipAssigned {
-    query_id: Int as uint64;
-    prev_owner: Address;
-    forward_payload: Slice as remaining; 
 }
 
 trait NFTAuctionMarketStandard {

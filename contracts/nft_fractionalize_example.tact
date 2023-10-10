@@ -101,7 +101,7 @@ contract NFTFraction with JettonMaster, Estimatable, Deployable {
     }
 
     override inline fun _mint_validate(ctx: Context, msg: JettonMint) {
-        require(ctx.sender == self.owner, "JettonMaster: Sender is not a Jetton owner");
+        require(ctx.sender == self.owner, "JettonMaster: Sender is not a NFT Item contract");
         require(self.mintable, "JettonMaster: Jetton is not mintable");
         require(self.total_supply + msg.amount <= self.max_supply, "JettonMaster: Exceeds max supply");
     }
@@ -146,34 +146,28 @@ contract FNFTCollection with NFTCollectionStandard, NFTRoyaltyStandard, Estimata
         let content_cell: map<Int, Cell> = emptyMap();
         let key1: StringBuilder = beginString();
         key1.append("name");
-        let key_cell1: Cell = key1.toCell();
-        let key_hash1: Int = key_cell1.hash(); // Int
+        let key_hash1: Int = sha256(key1.toString());
         let value1: StringBuilder = beginString();
         value1.append("F-TonDynasty #");
         value1.append(index.toString());
-        let value_cell1: Cell = value1.toCell();
-        content_cell.set(key_hash1, value_cell1);
+        content_cell.set(key_hash1, beginCell().storeUint(0, 8).storeRef(value1.toCell()).endCell());
 
         let key2: StringBuilder = beginString();
         key2.append("description");
-        let key_cell2: Cell = key2.toCell();
-        let key_hash2: Int = key_cell2.hash(); // Int
+        let key_hash2: Int = sha256(key2.toString());
         let value2: StringBuilder = beginString();
         value2.append(index.toString());
-        let value_cell2: Cell = value2.toCell();
-        content_cell.set(key_hash2, value_cell2);
+        content_cell.set(key_hash2, beginCell().storeUint(0, 8).storeRef(value2.toCell()).endCell());
 
         let key3: StringBuilder = beginString();
         key3.append("symbol");
-        let key_cell3: Cell = key3.toCell();
-        let key_hash3: Int = key_cell3.hash(); // Int
+        let key_hash3: Int = sha256(key3.toString());
         let value3: StringBuilder = beginString();
         value3.append("F-TDT #");
         value3.append(index.toString());
-        let value_cell3: Cell = value3.toCell();
-        content_cell.set(key_hash3, value_cell3);
+        content_cell.set(key_hash3, beginCell().storeUint(0, 8).storeRef(value3.toCell()).endCell());
         
-        let jetton_content: Cell = beginCell().storeInt(0, 8).storeRef(content_cell.asCell()!!).endCell();
+        let jetton_content: Cell = beginCell().storeInt(0, 8).storeRef(content_cell.asCell()).endCell();
 
         return FractionParams {
             max_supply: ton("100"),
@@ -262,9 +256,10 @@ contract FNFTItem with NFTItemStandard, Lockable, Ownable {
         self.forward(
             contractAddress(nftFractionInit),
             JettonMint {
+                origin: ctx.sender,
                 receiver: ctx.sender, 
                 amount: self.fraction_params.max_supply,
-                forward_ton_amount: ton("1"),
+                forward_ton_amount: 0,
                 forward_payload: emptySlice()
             }.toCell(),
             false,

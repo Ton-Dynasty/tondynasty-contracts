@@ -17,6 +17,7 @@ struct JettonData {
 }
 
 message JettonMint {
+    origin: Address;      // address of origin mint request (may be wallet v4)
     receiver: Address;  // address of receiver
     amount: Int;        // amount of jettons to mint
     forward_ton_amount: Int as coins;
@@ -70,7 +71,7 @@ trait JettonMaster {
             body: JettonInternalTransfer{ 
                 query_id: 0,
                 amount: msg.amount,
-                response_address: ctx.sender,
+                response_address: msg.origin,
                 from: myAddress(),
                 forward_ton_amount: msg.forward_ton_amount,
                 forward_payload: msg.forward_payload

@@ -89,8 +89,7 @@ trait NFTItemStandard {
 
     // @dev  _transfer_validate checks if the request is valid (e.g. the sender is the current owner of the NFT item)
     //       throws error if the request is invalid
-    // @note one may override this function to implement custom validation logic
-    //       for instance, a fractionable NFT item may check whether the item is locked
+    // @note one may override this function to implement custom validation logicTransferked
     virtual inline fun _transfer_validate(ctx: Context, msg: Transfer, remain: Int) {
         require(ctx.sender == self.owner || ctx.sender == self.collection_address, "NFTItemStandard: Only the owner or collection can transfer the NFT item");
     }
