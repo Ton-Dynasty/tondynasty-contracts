@@ -210,6 +210,7 @@ trait JettonWallet {
     }
 
     // @dev  _transfer_jetton will transfer jettons to the jetton wallet of the destination address (owner of jetton wallet)
+    // @note  this message is bounceable, if transfer action failed, the message will be bounced back, you should increase the balance of the wallet
     virtual inline fun _transfer_jetton(ctx: Context, msg: JettonTransfer) {
         let init: StateInit = self.calculate_jetton_wallet_init(msg.destination);
         let receiver: Address = contractAddress(init);

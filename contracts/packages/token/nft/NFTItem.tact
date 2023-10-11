@@ -111,7 +111,7 @@ trait NFTItemStandard {
     // @dev  transfer performs the transfer of the NFT item
     //      if available, it will send OwnershipAssigned message to the new owner
     //      then, it will send Excesses message to the response_destination (old owner) if needed.
-    // @note one may override this function to implement custom minting logic
+    // @note one may override this function to implement custom transfer logic
     virtual inline fun transfer(ctx: Context, msg: Transfer, remain: Int) {
         self.owner = msg.new_owner;
         if (msg.forward_amount > 0) {
