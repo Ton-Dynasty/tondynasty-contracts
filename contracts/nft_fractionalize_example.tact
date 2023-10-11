@@ -8,6 +8,9 @@ import "./packages/token/jetton/JettonWallet";
 import "./packages/utils/Estimatable";
 import "./packages/utils/Lockable";
 
+@name(udict_set_ref)
+native udict_set_ref(dict: Cell?, key_len: Int, index: Int, value: Cell): Cell?; 
+
 message FractionParams {
     max_supply: Int as coins;
     jetton_content: Cell;
@@ -112,7 +115,7 @@ contract FNFTCollection with NFTCollectionStandard, NFTRoyaltyStandard, Estimata
     collection_content: Cell;           // collection_content may be the prefix of individual_content
     owner_address: Address;             // owner_address is the address of the owner of the collection
     royalty_params: RoyaltyParams;      // royalty_params is the params of royalty
-    
+    //content_cell: map<Int, Cell> ;
     init(owner_address: Address, collection_content: Cell, royalty_params: RoyaltyParams) {
         self.owner_address = owner_address;
         self.collection_content = collection_content;
@@ -142,36 +145,33 @@ contract FNFTCollection with NFTCollectionStandard, NFTRoyaltyStandard, Estimata
         self.next_item_index = self.next_item_index + 1;
     }
 
+
+
     inline fun get_fraction_param(index: Int): FractionParams {
-        let content_cell: map<Int, Cell> = emptyMap();
-        let key1: StringBuilder = beginString();
-        key1.append("name");
-        let key_hash1: Int = sha256(key1.toString());
-        let value1: StringBuilder = beginString();
-        value1.append("F-TonDynasty #");
-        value1.append(index.toString());
-        content_cell.set(key_hash1, beginCell().storeUint(0, 8).storeRef(value1.toCell()).endCell());
+        let content_cell: Cell? = null;
+        let value1: Builder = beginCell();
+        let value1Str: StringBuilder = beginStringFromBuilder(value1);
+        value1Str.append("F-TonDynasty #");
+        value1Str.append(index.toString());
+        content_cell = udict_set_ref(content_cell, 256, sha256("name"), value1Str.toCell());
 
-        let key2: StringBuilder = beginString();
-        key2.append("description");
-        let key_hash2: Int = sha256(key2.toString());
-        let value2: StringBuilder = beginString();
-        value2.append(index.toString());
-        content_cell.set(key_hash2, beginCell().storeUint(0, 8).storeRef(value2.toCell()).endCell());
 
-        let key3: StringBuilder = beginString();
-        key3.append("symbol");
-        let key_hash3: Int = sha256(key3.toString());
-        let value3: StringBuilder = beginString();
-        value3.append("F-TDT #");
-        value3.append(index.toString());
-        content_cell.set(key_hash3, beginCell().storeUint(0, 8).storeRef(value3.toCell()).endCell());
-        
-        let jetton_content: Cell = beginCell().storeInt(0, 8).storeRef(content_cell.asCell()!!).endCell();
+        let value2: Builder = beginCell();
+        let value2Str: StringBuilder = beginStringFromBuilder(value2);
+        value2Str.append(index.toString());
+        content_cell = udict_set_ref(content_cell, 256, sha256("description"), value2Str.toCell());
+
+        let value3: Builder = beginCell();
+        let value3Str: StringBuilder = beginStringFromBuilder(value3);
+        value3Str.append("F-TDT #");
+        value3Str.append(index.toString());
+        content_cell = udict_set_ref(content_cell, 256, sha256("symbol"), value3Str.toCell());
+
+        let jetton_content: Builder = beginCell().storeInt(0x00, 8).storeUint(1, 1).storeRef(content_cell!!);
 
         return FractionParams {
             max_supply: ton("100"),
-            jetton_content: jetton_content
+            jetton_content: jetton_content.endCell()
         };
     }
 

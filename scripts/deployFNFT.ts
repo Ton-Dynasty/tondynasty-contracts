@@ -11,8 +11,8 @@ export async function run(provider: NetworkProvider) {
     const collectionContent = beginCell().storeInt(OFFCHAIN_TAG, 8).storeStringRefTail(BASE_URL).endCell();
     const royaltyParams: RoyaltyParams = {
         $$type: 'RoyaltyParams',
-        numerator: 39n,
-        denominator: 120n,
+        numerator: 99n,
+        denominator: 121n,
         destination: deployer.address!,
     };
     const nftCollection = provider.open(
