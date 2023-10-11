@@ -117,5 +117,6 @@ describe('NFTFractoinalizeExample', () => {
         console.log('onchainContent:\n', onchainContent);
         let contentCell: Cell = (await nftcollection.getDebugFractionParam(1n)).jetton_content;
         console.log('contentCell:\n', contentCell);
+        expect(contentCell.toString()).toEqual(onchainContent.toString());
     });
 });
