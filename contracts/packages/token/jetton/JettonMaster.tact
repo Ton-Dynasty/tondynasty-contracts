@@ -33,12 +33,15 @@ trait JettonMaster {
     //********************************************//
     //                  Messages                  //
     //********************************************//
+
+    // @dev  JettonBurnNotification is sent from Jetton wallet after burning jettons
     receive(msg: JettonBurnNotification) {
         let ctx: Context = context();
         self._burn_notification_validate(ctx, msg);
         self._burn_notification(ctx, msg);
     }
 
+    // @dev  JettonMint is sent from user to mint jettons
     receive(msg: JettonMint) {
         let ctx: Context = context();
         self._mint_validate(ctx, msg);

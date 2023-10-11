@@ -70,7 +70,7 @@ trait JettonWallet {
     //                  Messages                  //
     //********************************************//
 
-
+    // @dev  JettonTransfer is send from the owner of the jetton wallet to the jetton wallet itself to transfer jettons to another user
     receive(msg: JettonTransfer) {
         let ctx: Context = context();
         self.balance = self.balance - msg.amount;
@@ -80,6 +80,7 @@ trait JettonWallet {
         self._transfer_jetton(ctx, msg);
     }
 
+    // @dev  JettonBurn is send from the owner of the jetton wallet to the jetton wallet itself to burn jettons
     receive(msg: JettonBurn) {
         let ctx: Context = context();
         self.balance = self.balance - msg.amount;
@@ -88,6 +89,7 @@ trait JettonWallet {
         self._burn_tokens(ctx, msg);
     }
 
+    // @dev  JettonInternalTransfer is send from the jetton master or jetton wallet to the jetton wallet itself to transfer jettons to this jetton wallet
     receive(msg: JettonInternalTransfer) {
         let ctx: Context = context();
         self.balance = self.balance + msg.amount;
