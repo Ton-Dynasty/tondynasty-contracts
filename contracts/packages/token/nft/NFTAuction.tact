@@ -71,7 +71,7 @@ trait NFTAuctionStandard {
             to: prevNftHighestBidder,
             value: paybackTon, 
             mode: SendPayGasSeparately, 
-            bounce: true,
+            bounce: false,
             body: "Pay bid money back to the prevNftHighestBidder".asComment()
         });
         // Update highest bid and Transfer ton back to previous highest bidder.
@@ -162,7 +162,7 @@ trait NFTAuctionStandard {
         send(SendParameters{
             to: self.owner, 
             value: ton("0.06"), 
-            bounce: false,
+            bounce: true,
             mode: SendPayGasSeparately,
             body: TransferNFT {
                 nftAddress: self.nftAddress,
@@ -185,7 +185,7 @@ trait NFTAuctionStandard {
             to: seller,
             value: winningBidAmount, 
             mode: SendPayGasSeparately, 
-            bounce: true,
+            bounce: false,
             body: "Pay winning bid amount".asComment()
         });
     }

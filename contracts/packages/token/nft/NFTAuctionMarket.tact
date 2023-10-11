@@ -143,9 +143,9 @@ trait NFTAuctionMarketStandard {
         require(self.auctionOverCheck.get(ctx.sender) != null ,"Auction was not set before.");
         send(SendParameters{
             to: msg.nftAddress, 
-            value: ton("0.05"), 
+            value: 0, 
             bounce: false,
-            mode: SendPayGasSeparately,
+            mode: SendRemainingValue,
             body: Transfer {
                 query_id: msg.query_id,
                 new_owner: msg.new_owner,

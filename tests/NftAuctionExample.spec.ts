@@ -86,7 +86,7 @@ describe('NFTAuctionExample', () => {
         return await nftAuctionMarket.send(
             alice.getSender(),
             {
-                value: toNano('0.5'),
+                value: toNano('0.2'),
             },
             setUpAuction
         );
@@ -374,7 +374,7 @@ describe('NFTAuctionExample', () => {
         const settleAuctionResult = await nftAuction.send(
             buyer3.getSender(),
             {
-                value: bidmoney3,
+                value: toNano('0.05'),
             },
             'settleAuction'
         );
