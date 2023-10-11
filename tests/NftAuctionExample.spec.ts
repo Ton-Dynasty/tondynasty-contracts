@@ -390,7 +390,7 @@ describe('NFTAuctionExample', () => {
         const settleAuctionResult2 = await nftAuction.send(
             buyer3.getSender(),
             {
-                value: bidmoney3,
+                value: toNano('0.05'),
             },
             'settleAuction'
         );
