@@ -99,6 +99,7 @@ trait NFTAuctionStandard {
         self.isInitialized = 0;
     }
 
+    // @dev Allows owner to adjust auction's reserve or buy-now prices.
     receive(msg: ReviseAuction) {
         let ctx: Context = context();
         require(ctx.sender == self.owner, "Only owner can revise auction contract");
@@ -121,21 +122,19 @@ trait NFTAuctionStandard {
         }
     }
 
+    // @dev Ends the auction and transfers the NFT to the highest bidder or back to the seller(If autcion not started)
     receive("EndAuction") {
+        // If this auction started, it will transfer NFT to highest bidder.
+        // Else, it will transfer NFT to seller.
         if(self.auctionEndTime > 0) {
-            // Auction started, so NFT transfer to highest bidder.
-
             // Pay winning bid amount to seller.
             self._send_winning_bid_amount();
-
             // Transfer NFT to buyer
             let buyer: Address = self.auctionInfo.nftHighestBidder;
             self._transfer_nft(buyer);
             self.isInitialized = 0;
         }
         else {
-            // Auction not started, so NFT transfer back to seller.
-            
             // Transfer NFT to seller
             let seller: Address = self.auctionInfo.nftSeller;
             self._transfer_nft(seller);

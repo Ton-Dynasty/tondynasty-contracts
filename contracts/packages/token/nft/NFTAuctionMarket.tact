@@ -160,8 +160,8 @@ trait NFTAuctionMarketStandard {
         self.auctionTransferCheck.set(hashSellerNftAddress, null);
     }
 
+    // @dev Updates auction details after verifying NFT transfer and previous auction setup, then communicates the update to the nftAuctionAddress.
     receive(msg: ReviseSetUpAuction) {
-        // Seller can update auction info.
         let ctx: Context = context();
         let sellerAddress: Address = ctx.sender;
         let hashSellerNftAddress: Int = self.get_hash_seller_nft_address(sellerAddress, msg.nftAddress);
@@ -182,9 +182,11 @@ trait NFTAuctionMarketStandard {
                 }.toCell()
             }
         );
-
     }
 
+    // @dev Allows the seller to terminate an auction. 
+    //      It verifies if the auction was previously set and then sends a message to the nftAuctionAddress to conclude the auction.
+    //      It will transfer the NFT to the highest bidder or back to the seller(If autcion not started).
     receive(msg: EndAuction) {
         // Seller can end auction.
         let ctx: Context = context();
