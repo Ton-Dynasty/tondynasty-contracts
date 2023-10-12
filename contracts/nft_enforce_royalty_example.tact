@@ -68,6 +68,10 @@ message FractionTrade {
     bidder: Address;
 }
 
+message BuildQuotaShop {
+    sender: Address;
+}
+
 contract NFTFractionWallet with JettonWallet {
     balance: Int as coins = ton("0");
     owner: Address;
@@ -320,6 +324,10 @@ contract QuotaShop with Deployable, Estimatable {
         self.balance = 0;
     }
 
+    receive(msg: BuildQuotaShop){
+        self.balance = 0;
+    }
+
     bounced (src: bounced<WithdrawQuotaShop>){
         self.balance = self.balance + src.amount;
     }
@@ -346,9 +354,9 @@ contract FNFTCollection with NFTCollectionStandard, NFTRoyaltyStandard, Estimata
         let remain: Int = self.estimate_rest_value(ctx);
         send(SendParameters{
                 to: contractAddress(nftItemInit), 
-                value: remain, 
+                value: ton("0.05"), 
                 bounce: false,
-                mode: SendIgnoreErrors,
+                mode: SendPayGasSeparately,
                 body: Transfer {
                     query_id: 0,
                     new_owner: ctx.sender,
@@ -364,9 +372,12 @@ contract FNFTCollection with NFTCollectionStandard, NFTRoyaltyStandard, Estimata
         let quotashopInit: StateInit = self.get_quotashop_init(self.next_item_index);
         send(SendParameters{
             to: contractAddress(quotashopInit),
-            value: remain,
+            value: ton("0.05"),
             bounce: false,
-            mode: SendIgnoreErrors,
+            mode: SendPayGasSeparately,
+            body: BuildQuotaShop {
+                sender: ctx.sender
+            }.toCell(),
             code: quotashopInit.code,
             data: quotashopInit.data
         });
