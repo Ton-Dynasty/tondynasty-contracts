@@ -48,7 +48,8 @@ contract ExampleNFTAuction with NFTAuctionStandard {
             nftHighestBidder: newAddress(0, 0),
             nftSeller: seller,
             whitelistedBuyer: seller,
-            nftRecipient: seller
+            nftRecipient: seller,
+            beneficiary: seller
         };
     }
 }
