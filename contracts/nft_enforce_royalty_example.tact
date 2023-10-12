@@ -560,7 +560,9 @@ contract FNFTItem with NFTItemStandard, Lockable, Ownable {
 
     override inline fun _transfer_validate(ctx: Context, msg: Transfer, remain: Int) {
         self.ensureUnlocked();
-        require(ctx.sender == self.owner || ctx.sender == self.collection_address, "FNFTItem: Only the owner or collection can transfer the NFT item");
+        let op: Int = self.loadOp(msg.custom_payload);
+        let isSentByAuction: Bool = self.is_send_by_auction(ctx, msg, op);
+        require(ctx.sender == self.owner || ctx.sender == self.collection_address || isSentByAuction, "FNFTItem: Only the owner or collection can transfer the NFT item");
     }
 
     override inline fun mint(ctx: Context, msg: Transfer) {
@@ -609,13 +611,8 @@ contract FNFTItem with NFTItemStandard, Lockable, Ownable {
     //              a. a part of nft fraction (jetton) will be minted to the receiver
     //              b. the remain part of nft fraction (jetton) will be minted to the author
     override inline fun transfer(ctx: Context, msg: Transfer, remain: Int) {
-        let transferAuctionPayload: TransferAuctionPayload? = null;
         let op: Int = self.loadOp(msg.custom_payload);
-        
-        if (op == 0x4056ceb8) { // TransferAuctionPayload
-            transferAuctionPayload = self.loadTransferAuctionPayload((msg.custom_payload!!).asSlice());
-        }
-        let isSentByAuction: Bool = (transferAuctionPayload != null) && (ctx.sender == self.get_nft_auction_address((transferAuctionPayload!!).seller));
+        let isSentByAuction: Bool = self.is_send_by_auction(ctx, msg, op);
         let isWhitelisted: Bool = ctx.sender == self.fraction_params.author || ctx.sender == self.collection_address  || isSentByAuction;
         if (isWhitelisted || self.quota > 0) {
             if (self.quota > 0 && !isWhitelisted) {
@@ -659,6 +656,20 @@ contract FNFTItem with NFTItemStandard, Lockable, Ownable {
             self.fractionalize_validate(ctx);
             self.fractionalize(ctx);
         }
+    }
+
+    inline fun is_send_by_auction(ctx: Context, msg: Transfer, op: Int): Bool {
+        let transferAuctionPayload: TransferAuctionPayload? = null;
+        
+        if (op == 0x4056ceb8) { // TransferAuctionPayload
+            transferAuctionPayload = self.loadTransferAuctionPayload((msg.custom_payload!!).asSlice());
+        }
+        let isSentByAuction: Bool = (transferAuctionPayload != null) && (ctx.sender == self.get_nft_auction_address((transferAuctionPayload!!).seller));
+        return isSentByAuction;
+    }
+
+    get fun debug_nft_auction_address(seller: Address): Address {
+        return self.get_nft_auction_address(seller);
     }
 
 }
@@ -722,7 +733,6 @@ contract NFTItemAuction {
         require(buyer != self.auctionInfo.nftSeller, "NFT Seller cannot bid");
         let buyNowPrice: Int = self.auctionInfo.buyNowPrice;
         if(buyNowPrice != 0) {
-            dump("Hey");
             self._trade_bid(ctx, buyNowPrice);
         }
         else {
@@ -802,6 +812,9 @@ contract NFTItemAuction {
         if(self.auctionInfo.nftHighestBid != 0) {
             self._send_prev_bid_back(ctx.sender, bidValue);
         }
+        // Update highest bid and Transfer ton back to previous highest bidder.
+        self.auctionInfo.nftHighestBidder = buyer;
+        self.auctionInfo.nftHighestBid = bidValue;
         // If bid value is greater than reserve price, then the auction is being started.
         if(bidValue > self.auctionInfo.reservePrice) {
             self._update_auction();
@@ -810,9 +823,13 @@ contract NFTItemAuction {
 
     inline fun _fraction_bid(ctx: Context) {
         let bidValue: Int = ctx.value;
+        let buyer: Address = ctx.sender;
         let bidIncreaseAmount: Int = (self.auctionInfo.nftHighestBid * (10000 + self.auctionInfo.bidIncreasePercentage)) / 10000;
         require(bidValue > bidIncreaseAmount, "FractionBid doesn't larger than the highest bid.");
         self._send_prev_bid_back(ctx.sender, bidValue);
+        // Update highest bid and Transfer ton back to previous highest bidder.
+        self.auctionInfo.nftHighestBidder = buyer;
+        self.auctionInfo.nftHighestBid = bidValue;
         // If bid value is greater than reserve price, then the auction is being started.
         self._update_auction();
     }
@@ -829,9 +846,6 @@ contract NFTItemAuction {
             bounce: false,
             body: "Pay bid money back to the prevNftHighestBidder".asComment()
         });
-        // Update highest bid and Transfer ton back to previous highest bidder.
-        self.auctionInfo.nftHighestBidder = bidder;
-        self.auctionInfo.nftHighestBid = bidValue;
     }
 
     inline fun _update_auction() {
