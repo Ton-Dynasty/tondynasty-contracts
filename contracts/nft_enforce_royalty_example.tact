@@ -150,7 +150,7 @@ contract QuotaShop with Deployable, Estimatable {
     receive (msg: BuyQuota){
         let ctx: Context = context();
         require(self.quota_amount > 0, "QuotaShop: Quota is not issued");
-        require(self.quota_amount >= msg.amount, "QuotaShop: Quota is not enough");
+        require(self.quota_amount >= msg.amount, "QuotaShop: Not enough quota");
         require(ctx.value >= self.quota_price * msg.amount, "QuotaShop: Not enough money");
         let remain: Int = self.estimate_rest_value(ctx) - ctx.readForwardFee();
         send(SendParameters{
