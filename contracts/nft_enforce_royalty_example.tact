@@ -59,6 +59,7 @@ message Trade {
 }
 
 message BuyAllToken {
+    origin: Address;
     reserve_price: Int as coins;
 }
 
@@ -78,14 +79,16 @@ contract NFTFractionWallet with JettonWallet {
         self.jetton_master = jetton_master;
     }
 
-    receive(msg: BuyAllToken) {
+    receive("BuyAll") {
+        let ctx: Context = context();
         send(SendParameters{
             to: self.jetton_master,
             value: 0,
             bounce: true,
             mode: SendRemainingValue + SendIgnoreErrors,
             body: BuyAllToken{ 
-                reserve_price: msg.reserve_price
+                origin: ctx.sender,
+                reserve_price: ton("0.1")
             }.toCell()
         });
     }
@@ -105,10 +108,12 @@ contract NFTFraction with JettonMaster, Estimatable, Deployable {
     total_supply: Int as coins = 0; // Total supply of the NFT item
     owner: Address;                 // NFT Item address
     jetton_content: Cell;
+    reserve_price: Int as coins;    // Reserve price of the NFT item
 
     max_supply: Int as coins;       // Max supply of the NFT item
 
     init(reserve_price: Int, max_supply: Int, owner: Address, jetton_content: Cell) {
+        self.reserve_price = reserve_price;
         self.max_supply = max_supply;
         self.owner = owner;
         self.jetton_content = jetton_content;
@@ -119,21 +124,21 @@ contract NFTFraction with JettonMaster, Estimatable, Deployable {
         self.total_supply = self.total_supply - src.amount;
     }
 
-    receive(msg: TryRedeem) {
-        require(self.total_supply == self.total_supply, "NFTFraction: Total supply is not equal to max supply");
+    receive(msg: BuyAllToken) {
         let ctx: Context = context();
-        require(ctx.sender == self.owner, "NFTFraction: Only NFT Item contract can try to redeem");
-        let walletInit: StateInit = self.calculate_jetton_wallet_init(msg.sender);
+        let nftFractionWalletInit: StateInit = self.calculate_jetton_wallet_init(msg.origin);
+        require(ctx.sender == contractAddress(nftFractionWalletInit), "NFTFraction: Only the NFT Fraction wallet contract trigger buy all tokens");
+        require(msg.reserve_price >= self.reserve_price, "NFTFraction: Reserve price is not enough");
+        let remain: Int = self.estimate_rest_value(ctx);
+        require(remain > msg.reserve_price * self.max_supply, "NFTFraction: Not enough money");
         send(SendParameters{
-            to: contractAddress(walletInit),
-            value: self.estimate_rest_value(ctx),
+            to: self.owner,
+            value: 0,
             bounce: false,
-            mode: SendIgnoreErrors,
-            body: JettonBurn {
-                query_id: 0,        
-                amount: self.total_supply,
-                response_destination: msg.sender,
-                custom_payload: emptyCell()
+            mode: SendRemainingValue,
+            body: FractionTrade {
+                buy_out: msg.reserve_price * self.max_supply,
+                bidder: msg.origin
             }.toCell()
         });
     }
@@ -186,6 +191,9 @@ contract NFTFraction with JettonMaster, Estimatable, Deployable {
         self.total_supply = self.total_supply + msg.amount;
         let rest_value: Int = self.estimate_rest_value(ctx);
         rest_value = rest_value - ctx.readForwardFee() - msg.forward_ton_amount;
+
+        let royalty_amount: Int = msg.amount * numerator / denominator;
+        let remain_amount: Int = msg.amount - royalty_amount;
         // To receiver's jetton wallet
         send(SendParameters{
             to: contractAddress(receiverInit),
@@ -194,7 +202,7 @@ contract NFTFraction with JettonMaster, Estimatable, Deployable {
             mode: SendPayGasSeparately,
             body: JettonInternalTransfer{ 
                 query_id: 0,
-                amount: msg.amount,
+                amount: remain_amount,
                 response_address: msg.origin,
                 from: myAddress(),
                 forward_ton_amount: msg.forward_ton_amount,
@@ -211,7 +219,7 @@ contract NFTFraction with JettonMaster, Estimatable, Deployable {
             mode: SendIgnoreErrors,
             body: JettonInternalTransfer{ 
                 query_id: 0,
-                amount: msg.amount,
+                amount: royalty_amount,
                 response_address: msg.origin,
                 from: myAddress(),
                 forward_ton_amount: msg.forward_ton_amount,
@@ -430,7 +438,8 @@ contract FNFTItem with NFTItemStandard, Lockable, Ownable {
 
     receive(msg: FractionTrade) {
         let ctx: Context = context();
-        self.requireOwner();
+        let jettonMatserInit: StateInit = self.get_jetton_master_init();
+        require(contractAddress(jettonMatserInit) == ctx.sender, "FNFTItem: Only the Jetton Master contract can trade the NFT item fraction");
         self.ensureUnlocked();
         self.lock();
         let beneficiary: Address = ctx.sender; // Jetton Master
