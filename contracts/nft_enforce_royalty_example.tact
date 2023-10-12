@@ -331,7 +331,19 @@ contract FNFTItem with NFTItemStandard, Lockable, Ownable {
         self.owner = newAddress(0, 0); // TODO: Change to NFT Market contract
 
         // TODO: Add the remain part
+        send(SendParameters{
+            to: newAddress(0, 0), // TODO: Change to NFT Market contract
+            value: 0,
+            bounce: false,
+            mode: SendRemainingValue + SendIgnoreErrors,
+            body: OwnershipAssigned {
+                query_id: 0,
+                prev_owner: ctx.sender,
+                forward_payload: emptySlice() // TODO: Change to AuctionInfo
+            }.toCell()
+        });
     }
+
 
     inline fun get_quotashop_init(): StateInit {
         return initOf QuotaShop(self.author, myAddress());
