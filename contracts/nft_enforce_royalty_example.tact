@@ -325,7 +325,6 @@ contract FNFTItem with NFTItemStandard, Lockable, Ownable {
 
     inline fun fractionalize_validate(ctx: Context) {
         self.ensureUnlocked();
-        self.requireOwner();
     }
 
     inline fun fractionalize(ctx: Context) {
