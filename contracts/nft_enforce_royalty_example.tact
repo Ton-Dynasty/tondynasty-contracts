@@ -47,7 +47,7 @@ message WithdrawQuotaShop{
     custom_payload: Cell;
 }
 
-message TransferAuctionPayload {
+message(0x4056ceb8) TransferAuctionPayload {
     seller: Address;
 }
 
@@ -570,12 +570,12 @@ contract FNFTItem with NFTItemStandard, Lockable, Ownable {
     //          WhiteListed:
     //              1. the sender is from author wallet address
     //              2. the sender is NFT collection contract
-    //              3. TODO: the sender Fraction auction contract
+    //              3. the sender Fraction auction contract
     //          Logic:
     //              if not whitelisted:
     //                  a. dwindles the quota by 1 (self.transfer)
     //              send OwnershipAssigned to msg.new_owner  (if sender is Fraction auction contract, send OwnershipAssigned to auction winner)
-    //              send Excesses to msg.response_destination (TODO: if sender is Fraction auction contract, send Excesses to Jetton master)
+    //              send Excesses to msg.response_destination (if sender is Fraction auction contract, send Excesses to Jetton master)
     //              
     //       - If un-whilitsted and self.quota == 0, the nft will be fractionalized (send JettonMint to NFTFraction contract):
     //              a. a part of nft fraction (jetton) will be minted to the receiver
@@ -583,7 +583,8 @@ contract FNFTItem with NFTItemStandard, Lockable, Ownable {
     override inline fun transfer(ctx: Context, msg: Transfer, remain: Int) {
         let transferAuctionPayload: TransferAuctionPayload? = null;
         let op: Int = self.loadOp(msg.custom_payload);
-        if (op == 0x4056ceb8) {
+        
+        if (op == 0x4056ceb8) { // TransferAuctionPayload
             transferAuctionPayload = self.loadTransferAuctionPayload((msg.custom_payload!!).asSlice());
         }
         let isSentByAuction: Bool = (transferAuctionPayload != null) && (ctx.sender == self.get_nft_auction_address((transferAuctionPayload!!).seller));
@@ -608,12 +609,23 @@ contract FNFTItem with NFTItemStandard, Lockable, Ownable {
             }
             remain = remain - ctx.readForwardFee(); 
             if (msg.response_destination != newAddress(0, 0) && remain > msg.forward_amount) { 
-                send(SendParameters{ 
-                    to: msg.response_destination,
-                    value: 0,
-                    mode: SendRemainingValue,
-                    body: Excesses { query_id: msg.query_id }.toCell()
-                });
+                if (op == 0x4056ceb8) { // TransferAuctionPayload
+                    send(SendParameters{ 
+                        to: msg.response_destination,
+                        value: 0,
+                        mode: SendRemainingValue,
+                        body: "EndFractionAuction".asComment()
+                    });
+                }
+                else {
+                    send(SendParameters{ 
+                        to: msg.response_destination,
+                        value: 0,
+                        mode: SendRemainingValue,
+                        body: Excesses { query_id: msg.query_id }.toCell()
+                    });
+                }
+                
             }
         } else {
             self.fractionalize_validate(ctx);
