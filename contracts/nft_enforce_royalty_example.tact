@@ -546,7 +546,7 @@ contract FNFTItem with NFTItemStandard, Lockable, Ownable {
         let transferAuctionPayload: TransferAuctionPayload? = null;
         if (payload != emptyCell()){
             let op: Int = self.loadOp(payload!!);
-            if (op == 0xba413f5f) {
+            if (op == 0x4056ceb8) {
                 transferAuctionPayload = self.loadTransferAuctionPayload((payload!!).asSlice());
             }
         }
