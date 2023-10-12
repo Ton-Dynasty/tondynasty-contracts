@@ -29,20 +29,20 @@ message(0xbac2f9a4) Compose {
     new_owner: Address;
 }
 
-message IssueQuota {
+message(0x2e5cd8d7) IssueQuota {
     amount: Int as uint32;
     price: Int as coins;
 }
 
-message BuyQuota {
+message(0x56f76a58) BuyQuota {
     amount: Int as uint32;
 }
 
-message IncreaseQuota {
+message(0x3b0da424) IncreaseQuota {
     amount: Int as uint32;
 }
 
-message WithdrawQuotaShop{
+message(0x286cc02a) WithdrawQuotaShop{
     amount: Int as coins;
     custom_payload: Cell;
 }
