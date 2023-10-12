@@ -9,6 +9,7 @@ describe('NFTAuctionExample', () => {
     let blockchain: Blockchain;
     let nftCollection: SandboxContract<FNFTCollection>;
     let owner: SandboxContract<TreasuryContract>;
+    let author: SandboxContract<TreasuryContract>;
     let alice: SandboxContract<TreasuryContract>;
     let nftAuction: SandboxContract<NFTItemAuction>;
     // let transferMsg: Transfer;
@@ -59,7 +60,7 @@ describe('NFTAuctionExample', () => {
         blockchain = await Blockchain.create();
         owner = await blockchain.treasury('owner');
         alice = await blockchain.treasury('alice'); // The creator of the NFT collection
-
+        author = await blockchain.treasury('author');
         const royalty_params: RoyaltyParams = {
             $$type: 'RoyaltyParams',
             numerator: 800n,
@@ -68,7 +69,9 @@ describe('NFTAuctionExample', () => {
         };
         const content = beginCell().endCell();
 
-        nftCollection = blockchain.openContract(await FNFTCollection.fromInit(alice.address, content, royalty_params));
+        nftCollection = blockchain.openContract(
+            await FNFTCollection.fromInit(alice.address, content, royalty_params, author.address)
+        );
         // Deploy NftCollection contract
         const deployCollectionResult = await nftCollection.send(
             alice.getSender(),
@@ -197,13 +200,82 @@ describe('NFTAuctionExample', () => {
             },
             'Bid'
         );
-        printTransactionFees(buyer2BuyResult.transactions);
+        //printTransactionFees(buyer2BuyResult.transactions);
         // Bid failed with 1007 because the bid is too low
-        // expect(buyer2BuyResult.transactions).toHaveTransaction({
-        //     from: buyer2.address,
-        //     to: nftAuction.address,
-        //     success: false,
-        //     exitCode: 3724, // Bid is too low
-        // });
+        expect(buyer2BuyResult.transactions).toHaveTransaction({
+            from: buyer2.address,
+            to: nftAuction.address,
+            success: false,
+            exitCode: 3724, // Bid is too low
+        });
+
+        // Third bid: Bid is enough to start the auction and it becomes the highest bid
+        let buyer3 = await blockchain.treasury('buyer3');
+        const bidmoney3 = toNano('15');
+        const buyer3BuyResult = await nftAuction.send(
+            buyer3.getSender(),
+            {
+                value: bidmoney3,
+            },
+            'Bid'
+        );
+        //printTransactionFees(buyer2BuyResult.transactions);
+        // Check auctionEnd of Nft Auction is not 0 (Because the bid price is > reserve price) => auction is started
+        // The auctionEnd should be the current time + auctionPeriod
+        const secondBidAuctionEnd = await nftAuction.getGetAuctionEnd();
+        expect(secondBidAuctionEnd).not.toEqual(0n);
+
+        // Check buyer1 receive money back from NftAuction
+        expect(buyer3BuyResult.transactions).toHaveTransaction({
+            from: nftAuctionAddress,
+            to: buyer1.address,
+            success: true,
+            value: bidmoney1 - minTonsForStorage - gasConsumption, // bid 5 ton, 0.06 ton is the fee => receive 4.94 ton back
+        });
+
+        const settleAuctionResult = await nftAuction.send(
+            buyer3.getSender(),
+            {
+                value: toNano('0.05'),
+            },
+            'settleAuction'
+        );
+        //printTransactionFees(settleAuctionResult.transactions);
+
+        expect(settleAuctionResult.transactions).toHaveTransaction({
+            from: buyer3.address,
+            to: nftAuction.address,
+            exitCode: 45065, // Auction not yet ended.
+        });
+        blockchain.now = Math.floor(Date.now() / 1000) + 2 * 24 * 60 * 60;
+
+        const settleAuctionResult2 = await nftAuction.send(
+            buyer3.getSender(),
+            {
+                value: toNano('0.05'),
+            },
+            'settleAuction'
+        );
+        //printTransactionFees(settleAuctionResult2.transactions);
+
+        // Check buyer2 send settleAuction message to NftAuction
+        expect(settleAuctionResult2.transactions).toHaveTransaction({
+            from: buyer3.address,
+            to: nftAuction.address,
+            success: true,
+        });
+
+        // Check NftAuction contract send winning bid money to Seller (Alice)
+        expect(settleAuctionResult2.transactions).toHaveTransaction({
+            from: nftAuction.address,
+            to: alice.address,
+            success: true,
+        });
+
+        expect(settleAuctionResult2.transactions).toHaveTransaction({
+            from: nftAuction.address,
+            to: nftItem.address,
+            success: true,
+        });
     });
 });
