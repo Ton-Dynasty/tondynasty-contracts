@@ -4,8 +4,8 @@
 */
 
 struct RoyaltyParams {
-    numerator: Int; // numerator to calculate royalty percentage
-    denominator: Int; // denominator to calculate royalty percentage
+    numerator: Int as uint16; // numerator to calculate royalty percentage
+    denominator: Int as uint16; // denominator to calculate royalty percentage
     destination: Address; // Address to receive royalty
 }
 
