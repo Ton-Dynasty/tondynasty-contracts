@@ -519,8 +519,11 @@ contract FNFTItem with NFTItemStandard, Lockable, Ownable {
         });
     }
 
-    inline fun loadOp (payload: Cell): Int {
-        let ps: Slice = payload.asSlice();
+    inline fun loadOp (payload: Cell?): Int {
+        if (payload == emptyCell()) {
+            return 0;
+        }
+        let ps: Slice = (payload!!).asSlice();
         ps.skipBits(32);
         return ps.loadUint(32);
     }
@@ -554,13 +557,10 @@ contract FNFTItem with NFTItemStandard, Lockable, Ownable {
     //              a. a part of nft fraction (jetton) will be minted to the receiver
     //              b. the remain part of nft fraction (jetton) will be minted to the author
     override inline fun transfer(ctx: Context, msg: Transfer, remain: Int) {
-        let payload: Cell? = msg.custom_payload;
         let transferAuctionPayload: TransferAuctionPayload? = null;
-        if (payload != emptyCell()){
-            let op: Int = self.loadOp(payload!!);
-            if (op == 0x4056ceb8) {
-                transferAuctionPayload = self.loadTransferAuctionPayload((payload!!).asSlice());
-            }
+        let op: Int = self.loadOp(msg.custom_payload);
+        if (op == 0x4056ceb8) {
+            transferAuctionPayload = self.loadTransferAuctionPayload((msg.custom_payload!!).asSlice());
         }
         let isSentByAuction: Bool = (transferAuctionPayload != null) && (ctx.sender == self.get_nft_auction_address((transferAuctionPayload!!).seller));
         let isWhitelisted: Bool = ctx.sender == self.fraction_params.author || ctx.sender == self.collection_address  || isSentByAuction; // TODO: add Fraction auction contract
