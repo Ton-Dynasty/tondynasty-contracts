@@ -41,7 +41,7 @@ describe('NFTAuctionExample', () => {
         const nftId0Address = await nftCollection.getGetNftAddressByIndex(nftId);
         const nftItem = blockchain.openContract(await ExampleNFTItem.fromAddress(nftId0Address)); // For now this NFT contract is owned by Alice
 
-        const payload = beginCell().storeAddress(nftCollection.address).storeInt(nftId, 32).endCell();
+        const payload = beginCell().endCell(); // This transfer doesn't set auction at the same time
         transferMsg = {
             $$type: 'Transfer',
             query_id: 0n,
@@ -511,4 +511,5 @@ describe('NFTAuctionExample', () => {
     // TODO: 1. Test ReviseSetUpAuction with reservePrice and buyNowPrice
     // TODO: 2. Test EndAuction
     // TODO: 3. Error test -> increase coverage
+    // TODO: 4. Test set up auction when transfer NFT to NFT Auction Market
 });
