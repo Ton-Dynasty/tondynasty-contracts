@@ -333,6 +333,14 @@ contract QuotaShop with Deployable, Estimatable {
     bounced (src: bounced<WithdrawQuotaShop>){
         self.balance = self.balance + src.amount;
     }
+
+    get fun debug_get_quota_price(): Int {
+        return self.quota_price;
+    }
+
+    get fun debug_get_quota_amount(): Int {
+        return self.quota_amount;
+    }
 }
 
 contract FNFTCollection with NFTCollectionStandard, NFTRoyaltyStandard, Estimatable, Deployable {
