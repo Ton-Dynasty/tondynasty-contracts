@@ -1,9 +1,13 @@
 import { Blockchain, SandboxContract, TreasuryContract, printTransactionFees } from '@ton-community/sandbox';
 import { Address, beginCell, toNano } from 'ton-core';
-import { AuctionInfo, ExampleNFTAuctionMarket, SetUpAuction } from '../wrappers/ExampleNFTAuctionMarket';
-import { ExampleNFTAuction } from '../wrappers/ExampleNFTAuction';
-import { ExampleNFTCollection, RoyaltyParams, Transfer } from '../wrappers/ExampleNFTCollection';
-import { ExampleNFTItem } from '../wrappers/ExampleNFTItem';
+import {
+    AuctionInfo,
+    ExampleNFTAuctionMarket,
+    SetUpAuction,
+} from '../wrappers/NftAuctionExample_ExampleNFTAuctionMarket';
+import { ExampleNFTAuction } from '../wrappers/NftAuctionExample_ExampleNFTAuction';
+import { ExampleNFTCollection, RoyaltyParams, Transfer } from '../wrappers/NFTExample_ExampleNFTCollection';
+import { ExampleNFTItem } from '../wrappers/NFTExample_ExampleNFTItem';
 import '@ton-community/test-utils';
 
 describe('NFTAuctionExample', () => {
