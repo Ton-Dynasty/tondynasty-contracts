@@ -68,10 +68,6 @@ trait NFTAuctionMarketStandard {
     auctionTransferCheck: map<Int, Int>; // key => hash(sellerAddress and nftAddress), vlaue => 1: set, 0: not set
     // Check whether nft auction is over or not
     auctionOverCheck: map<Address, Address>;  // key => nft auction contract address, value => 1: not over, 0: over
-    
-    // [For Future Version] 
-    // Get auction info by nft collection address and nft id.
-    // collectionNftIdToAuction: map<Int, Int>; // key => hash(nft collection address and nft id), value => hash(sellerAddress and nftAddress)
 
     // @dev Default parameters for setting up an NFT auction
     virtual const defaultBidIncreasePercentage: Int = 100;
@@ -93,18 +89,13 @@ trait NFTAuctionMarketStandard {
         let prev_owner: Address = msg.prev_owner; // Seller Address
         let nftAddress: Address = ctx.sender;
         let hashSellerNftAddress: Int = self.get_hash_seller_nft_address(prev_owner, nftAddress);
-
-        // [For Future Version] 
-        // Record nft collection address and nft id to auction, so that we can get auction info by nft collection address and nft id 
-        // let payload: Cell = msg.forward_payload;
-        // let parser: Slice = payload.beginParse();
-        // let collectionAddress: Address = parser.loadAddress();
-        // let nftId: Int = parser.loadInt(32);
-        // let collectionAndNftId: Int = beginCell().storeAddress(collectionAddress).storeInt(nftId, 32).endCell().asSlice().hash();
-        // self.collectionNftIdToAuction.set(collectionAndNftId, hashSellerNftAddress);
-
         // Set nft transfer checking to 1
         self.auctionTransferCheck.set(hashSellerNftAddress, 1);
+        let payload: Slice = msg.forward_payload;
+        
+        if(payload.empty() == false) {  
+            self._parse_forward_payload(prev_owner, nftAddress, payload);
+        }
     }
 
     // @dev Handles the receipt of a SetUpAuction message.
@@ -115,32 +106,25 @@ trait NFTAuctionMarketStandard {
         let ctx: Context = context();
         let sellerAddress: Address = ctx.sender;
         let hashSellerNftAddress: Int = self.get_hash_seller_nft_address(sellerAddress, msg.nftAddress);
-        require(self.get_is_auction_transfer_check(hashSellerNftAddress) == 1, "This NFT didn't transfer to NFT Auction Market Contract yet.");
-        // Deploy a new NFT Auction Contract
+        self._auction_transfer_validate(hashSellerNftAddress);
+
+        // Set up auction info
         let auctionInfo: AuctionInfo = self._set_up_auction(sellerAddress, msg.nftAddress, msg.reservePrice, msg.buyNowPrice, msg.auctionPeriod); // set up auction
-        require(auctionInfo.buyNowPrice > auctionInfo.reservePrice, "BuyNowPrice must be greater than reservePrice.");
+        self._set_price_validate(msg.buyNowPrice, msg.reservePrice);
         let nftAuctionInit: StateInit = self._nft_auction_init(msg.nftAddress, sellerAddress);
         let nftAuctionAddress: Address = self.get_nft_auction_address(msg.nftAddress, sellerAddress);
-        require(self.auctionOverCheck.get(nftAuctionAddress) == null, "Auction was already set for this NFT.");
+        self._auction_set_validate(nftAuctionAddress);
         self.auctionOverCheck.set(nftAuctionAddress, msg.nftAddress);
-        send(SendParameters{
-                to: nftAuctionAddress,
-                value: 0,
-                mode: SendRemainingValue,
-                bounce: false,
-                body: BuildNftAuction {
-                    auctionInfo: auctionInfo
-                }.toCell(),
-                code: nftAuctionInit.code, 
-                data: nftAuctionInit.data
-            }
-        );
+
+        // Deploy a new NFT Auction Contract
+        self._build_auction(nftAuctionAddress, auctionInfo, nftAuctionInit);
     }
 
     // @dev Handles the TransferNFT message and facilitates NFT transfer to the auction's winning bidder.
     receive(msg: TransferNFT) {
         let ctx: Context = context();
-        require(self.auctionOverCheck.get(ctx.sender) != null ,"Auction was not set before.");
+        let nftAuctionAddress: Address = ctx.sender;
+        self._auction_not_set_validate(nftAuctionAddress);
         send(SendParameters{
             to: msg.nftAddress, 
             value: 0, 
@@ -165,10 +149,10 @@ trait NFTAuctionMarketStandard {
         let ctx: Context = context();
         let sellerAddress: Address = ctx.sender;
         let hashSellerNftAddress: Int = self.get_hash_seller_nft_address(sellerAddress, msg.nftAddress);
-        require(self.get_is_auction_transfer_check(hashSellerNftAddress) == 1, "This NFT didn't transfer to NFT Auction Market Contract yet.");
+        self._auction_transfer_validate(hashSellerNftAddress);
         // Get nft auction address
         let nftAuctionAddress: Address = self.get_nft_auction_address(msg.nftAddress, sellerAddress);
-        require(self.auctionOverCheck.get(nftAuctionAddress) != null, "Auction was not set before.");
+        self._auction_not_set_validate(nftAuctionAddress);
         self._set_up_auction(sellerAddress, msg.nftAddress, msg.reservePrice, msg.buyNowPrice, msg.auctionPeriod); // Revise the auction info.
         self.auctionOverCheck.set(nftAuctionAddress, msg.nftAddress);
         let newAuctionInfo: AuctionInfo = self._set_up_auction(sellerAddress, msg.nftAddress, msg.reservePrice, msg.buyNowPrice, msg.auctionPeriod); // set up auction
@@ -193,7 +177,7 @@ trait NFTAuctionMarketStandard {
         let sellerAddress: Address = ctx.sender;
         let hashSellerNftAddress: Int = self.get_hash_seller_nft_address(sellerAddress, msg.nftAddress);
         let nftAuctionAddress: Address = self.get_nft_auction_address(msg.nftAddress, sellerAddress);
-        require(self.auctionOverCheck.get(nftAuctionAddress) != null, "Auction was not set before.");
+        self._auction_not_set_validate(nftAuctionAddress);
         send(SendParameters{
                 to: nftAuctionAddress,
                 value: 0,
@@ -207,6 +191,55 @@ trait NFTAuctionMarketStandard {
     //********************************************//
     //             Internal functions             //
     //********************************************//
+
+    virtual inline fun _parse_forward_payload(seller: Address, nftAddress: Address, payload: Slice) {
+        // Parse payload
+        let reservePrice: Int = payload.loadCoins();
+        let buyNowPrice: Int = payload.loadCoins();
+        let auctionPeriod: Int = payload.loadUint(256);
+
+        // Set up auction info
+        let auctionInfo: AuctionInfo = self._set_up_auction(seller, nftAddress, reservePrice, buyNowPrice, auctionPeriod); // set up auction
+        self._set_price_validate(buyNowPrice, reservePrice);
+        let nftAuctionInit: StateInit = self._nft_auction_init(nftAddress, seller);
+        let nftAuctionAddress: Address = self.get_nft_auction_address(nftAddress, seller);
+        self._auction_set_validate(nftAuctionAddress);
+        self.auctionOverCheck.set(nftAuctionAddress, nftAddress);
+
+        // Deploy a new NFT Auction Contract
+        self._build_auction(nftAuctionAddress, auctionInfo, nftAuctionInit);
+    }
+
+    virtual inline fun _build_auction(nftAuctionAddress: Address, auctionInfo: AuctionInfo, nftAuctionInit: StateInit) {
+        send(SendParameters{
+                to: nftAuctionAddress,
+                value: 0,
+                mode: SendRemainingValue,
+                bounce: false,
+                body: BuildNftAuction {
+                    auctionInfo: auctionInfo
+                }.toCell(),
+                code: nftAuctionInit.code, 
+                data: nftAuctionInit.data
+            }
+        );
+    }
+    
+    virtual inline fun _set_price_validate(buyNowPrice: Int, reservePrice: Int) {
+        require(buyNowPrice > reservePrice, "BuyNowPrice must be greater than reservePrice.");
+    }
+
+    virtual inline fun _auction_set_validate(nftAuctionAddress: Address) {
+        require(self.auctionOverCheck.get(nftAuctionAddress) == null, "Auction was already set for this NFT.");
+    }
+
+    virtual inline fun _auction_not_set_validate(nftAuctionAddress: Address) {
+        require(self.auctionOverCheck.get(nftAuctionAddress) != null, "Auction was not set before.");
+    }
+
+    virtual inline fun _auction_transfer_validate(hashSellerNftAddress: Int) {
+        require(self.get_is_auction_transfer_check(hashSellerNftAddress) == 1, "This NFT didn't transfer to NFT Auction Market Contract yet.");
+    }
 
     // @dev Initializes an auction for a specified NFT with given parameters such as reserve price, buy now price, and auction duration.
     // @note If you want to use custom auction parameters or logic, consider overriding this function and AuctionInfo struct in a derived contract.
