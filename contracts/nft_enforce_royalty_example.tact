@@ -515,6 +515,8 @@ contract FNFTItem with NFTItemStandard, Lockable, Ownable {
         return contractAddress(nftAuctionInit);
     }
 
+    
+
     inline fun fractionalize_validate(ctx: Context) {
         self.ensureUnlocked();
     }
@@ -705,6 +707,7 @@ contract NFTItemAuction {
         require(buyer != self.auctionInfo.nftSeller, "NFT Seller cannot bid");
         let buyNowPrice: Int = self.auctionInfo.buyNowPrice;
         if(buyNowPrice != 0) {
+            dump("Hey");
             self._trade_bid(ctx, buyNowPrice);
         }
         else {
@@ -781,7 +784,9 @@ contract NFTItemAuction {
         }
         let bidIncreaseAmount: Int = (self.auctionInfo.nftHighestBid * (10000 + self.auctionInfo.bidIncreasePercentage)) / 10000;
         require(bidValue > bidIncreaseAmount, "Bid doesn't meet the minimum increase requirement");
-        self._send_prev_bid_back(ctx.sender, bidValue);
+        if(self.auctionInfo.nftHighestBid != 0) {
+            self._send_prev_bid_back(ctx.sender, bidValue);
+        }
         // If bid value is greater than reserve price, then the auction is being started.
         if(bidValue > self.auctionInfo.reservePrice) {
             self._update_auction();
