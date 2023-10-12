@@ -547,10 +547,10 @@ contract FNFTItem with NFTItemStandard, Lockable, Ownable {
         return ps.loadUint(32);
     }
     
-    inline fun storeTransferAuctionPayload(payload: TransferAuctionPayload): Cell {
+    inline fun storeTransferAuctionPayload(payload: TransferAuctionPayload): Slice {
         let builder: Builder = beginCell();
         builder.storeAddress(payload.seller);
-        return builder.endCell();
+        return builder.asSlice();
     }
     
     inline fun loadTransferAuctionPayload(payload: Slice): TransferAuctionPayload {
