@@ -7,6 +7,7 @@ import "./packages/token/jetton/JettonMaster";
 import "./packages/token/jetton/JettonWallet";
 import "./packages/utils/Estimatable";
 import "./packages/utils/Lockable";
+import "./packages/token/nft/NFTAuctionMarket";
 
 @name(udict_set_ref)
 native udict_set_ref(dict: Cell?, key_len: Int, index: Int, value: Cell): Cell?; 
@@ -40,6 +41,13 @@ message IncreaseQuota {
 message WithdrawQuotaShop{
     amount: Int as coins;
     custom_payload: Cell;
+}
+
+message Trade {
+    reserve_price: Int as coins;
+    buynow_price: Int as coins;
+    auction_period: Int as uint256; 
+    beneficiary: Address?;
 }
 
 contract NFTFractionWallet with JettonWallet {
@@ -313,6 +321,16 @@ contract FNFTItem with NFTItemStandard, Lockable, Ownable {
         let ctx: Context = context();
         require(ctx.sender == contractAddress(self.get_quotashop_init()), "FNFTItem: Only the QuotaShop contract can increase the quota");
         self.quota = self.quota + msg.amount;
+    }
+
+    receive(msg: Trade) {
+        let ctx: Context = context();
+        self.requireOwner();
+        self.ensureUnlocked();
+        self.lock();
+        self.owner = newAddress(0, 0); // TODO: Change to NFT Market contract
+
+        // TODO: Add the remain part
     }
 
     inline fun get_quotashop_init(): StateInit {
