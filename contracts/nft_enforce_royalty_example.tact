@@ -293,7 +293,9 @@ contract FNFTItem with NFTItemStandard, Lockable, Ownable {
     //          1. if self.quota == 0, the nft will be fractionalized
     //              a. a part of nft fraction (jetton) will be minted to the receiver
     //              b. the remain part of nft fraction (jetton) will be minted to the author
-    //          2. if self.quota > 0, the nft will be transferred to the receiver, and dwindles the quota by 1  
+    //          2. if self.quota > 0, the nft will be transferred to the receiver, and dwindles the quota by 1
+    //              a. OwnershipAssigned should sent to msg.new_owner
+    //              b. Excesses should sent to msg.response_destination
     virtual inline fun transfer(ctx: Context, msg: Transfer, remain: Int) {
         self.owner = msg.new_owner;
         if (msg.forward_amount > 0) {
