@@ -300,11 +300,12 @@ contract QuotaShop with Deployable, Estimatable {
         require(self.quota_amount >= msg.amount, "QuotaShop: Not enough quota");
         self.quota_amount = self.quota_amount - msg.amount;
         self.balance = self.balance + self.quota_price * msg.amount;
+        let remain: Int = self.estimate_rest_value(ctx) - (self.quota_price * msg.amount);
         send(SendParameters{
             to: self.nft_item,
-            value: 0,
+            value: remain,
             bounce: false,
-            mode: SendRemainingValue + SendIgnoreErrors,
+            mode: SendPayGasSeparately + SendIgnoreErrors,
             body: IncreaseQuota{
                 amount: msg.amount,
                 sender: ctx.sender
@@ -342,6 +343,18 @@ contract QuotaShop with Deployable, Estimatable {
 
     bounced (src: bounced<WithdrawQuotaShop>){
         self.balance = self.balance + src.amount;
+    }
+
+    get fun debug_get_quota_price(): Int {
+        return self.quota_price;
+    }
+
+    get fun debug_get_quota_amount(): Int {
+        return self.quota_amount;
+    }
+
+    get fun debug_get_balance(): Int {
+        return self.balance;
     }
 }
 
@@ -942,7 +955,7 @@ contract NFTItemAuction {
                 query_id: 0,
                 new_owner: buyer,
                 response_destination: buyer,
-                custom_payload: emptyCell(),
+                custom_payload: custom_payload,
                 forward_amount: 0,
                 forward_payload: emptySlice()
             }.toCell()
