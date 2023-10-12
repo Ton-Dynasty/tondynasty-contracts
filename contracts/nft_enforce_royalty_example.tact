@@ -41,6 +41,7 @@ message(0x56f76a58) BuyQuota {
 
 message(0x3b0da424) IncreaseQuota {
     amount: Int as uint32;
+    sender: Address;
 }
 
 message(0x286cc02a) WithdrawQuotaShop{
@@ -263,6 +264,8 @@ contract NFTFraction with JettonMaster, Estimatable, Deployable, Lockable {
 }
 
 contract QuotaShop with Deployable, Estimatable {
+    override const minTonsForStorage: Int = ton("0.04");
+
     quota_amount: Int as uint32 = 0;
     quota_price: Int as coins = 0;
     author: Address;
@@ -285,27 +288,17 @@ contract QuotaShop with Deployable, Estimatable {
         let ctx: Context = context();
         require(self.quota_amount > 0, "QuotaShop: Quota is not issued");
         require(self.quota_amount >= msg.amount, "QuotaShop: Not enough quota");
-        require(ctx.value >= self.quota_price * msg.amount, "QuotaShop: Not enough money");
-        let remain: Int = self.estimate_rest_value(ctx) - ctx.readForwardFee();
+        self.quota_amount = self.quota_amount - msg.amount;
+        self.balance = self.balance + self.quota_price * msg.amount;
         send(SendParameters{
             to: self.nft_item,
             value: 0,
             bounce: false,
-            mode: SendPayGasSeparately,
+            mode: SendRemainingValue + SendIgnoreErrors,
             body: IncreaseQuota{
-                amount: msg.amount
+                amount: msg.amount,
+                sender: ctx.sender
             }.toCell()
-        });
-
-        self.quota_amount = self.quota_amount - msg.amount;
-        self.balance = self.balance + self.quota_price * msg.amount;
-
-        send(SendParameters{
-            to: ctx.sender,
-            value: remain,
-            bounce: false,
-            mode: SendIgnoreErrors,
-            body: "Success".asComment()
         });
     }
 
@@ -473,6 +466,12 @@ contract FNFTItem with NFTItemStandard, Lockable, Ownable {
         let ctx: Context = context();
         require(ctx.sender == contractAddress(self.get_quotashop_init()), "FNFTItem: Only the QuotaShop contract can increase the quota");
         self.quota = self.quota + msg.amount;
+        send(SendParameters{
+            to: msg.sender,
+            value: 0,
+            bounce: false,
+            mode: SendRemainingValue + SendIgnoreErrors
+        });
     }
 
     receive(msg: Trade) {
