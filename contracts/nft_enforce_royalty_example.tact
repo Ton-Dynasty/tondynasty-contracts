@@ -330,11 +330,13 @@ contract FNFTCollection with NFTCollectionStandard, NFTRoyaltyStandard, Estimata
     collection_content: Cell;           // collection_content may be the prefix of individual_content
     owner_address: Address;             // owner_address is the address of the owner of the collection
     royalty_params: RoyaltyParams;      // royalty_params is the params of royalty
+    author: Address;                    // author is the address of the author of the collection
 
-    init(owner_address: Address, collection_content: Cell, royalty_params: RoyaltyParams) {
+    init(owner_address: Address, collection_content: Cell, royalty_params: RoyaltyParams, author: Address) {
         self.owner_address = owner_address;
         self.collection_content = collection_content;
         self.royalty_params = royalty_params;
+        self.author = author;
     }
 
     // @dev Mint is not the standard function of NFTCollection, so we need to define it by ourselves
@@ -383,7 +385,7 @@ contract FNFTCollection with NFTCollectionStandard, NFTRoyaltyStandard, Estimata
         let jetton_content: Builder = beginCell().storeInt(0x00, 8).storeUint(1, 1).storeRef(content_cell!!);
 
         return FractionParams {
-            author: self.owner_address,
+            author: self.author,
             reserve_price: DEFAULT_RESERVE_PRICE,
             max_supply: ton("100"),
             jetton_content: jetton_content.endCell()
@@ -448,8 +450,8 @@ contract FNFTItem with NFTItemStandard, Lockable, Ownable {
 
     receive(msg: FractionTrade) {
         let ctx: Context = context();
-        let jettonMatserInit: StateInit = self.get_jetton_master_init();
-        require(contractAddress(jettonMatserInit) == ctx.sender, "FNFTItem: Only the Jetton Master contract can trade the NFT item fraction");
+        let jettonMasterInit: StateInit = self.get_jetton_master_init();
+        require(contractAddress(jettonMasterInit) == ctx.sender, "FNFTItem: Only the Jetton Master contract can trade the NFT item fraction");
         self.ensureLocked();
         let beneficiary: Address = ctx.sender; // Jetton Master
         let nftAuctionAddress: Address = self.get_nft_auction_address(msg.bidder);
