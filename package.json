@@ -6,7 +6,7 @@
         "build": "rm -rf ./build/* && blueprint build --all",
         "dev": "blueprint build",
         "test": "jest",
-        "gen": "sh ./scripts/genWrapper.sh"
+        "gen": "bash ./scripts/genWrapper.sh"
     },
     "license": "MIT",
     "devDependencies": {
