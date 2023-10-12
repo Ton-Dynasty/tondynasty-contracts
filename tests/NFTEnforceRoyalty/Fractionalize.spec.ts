@@ -144,25 +144,59 @@ describe('NFTExample', () => {
                 amount: 1n,
             }
         );
+        // Check Alan send a transaction to QuotaShop
         expect(buyResult.transactions).toHaveTransaction({
             from: alan.address,
             to: quotaShopAddr,
             deploy: false,
             success: true,
         });
+
+        // Check QuotaShop send IncreaseQuota to NFTItem
         expect(buyResult.transactions).toHaveTransaction({
             from: quotaShopAddr,
             to: nftItemAddr,
             deploy: false,
             success: true,
         });
+
+        // Check NFTItem quota repay to alan
         expect(buyResult.transactions).toHaveTransaction({
             from: nftItemAddr,
             to: alan.address,
             deploy: false,
             success: true,
         });
+
+        // Check NFTItem quota increased by 1
         const quotaAfter = await nftItem.getDebugGetQuota();
         expect(quotaAfter).toEqual(quotaBefore + 1n);
+
+        // Check transfer NFT Item to Jacky
+        const transferResult = await nftItem.send(
+            alan.getSender(),
+            {
+                value: toNano('1'),
+            },
+            {
+                $$type: 'Transfer',
+                query_id: 0n,
+                new_owner: jacky.address,
+                response_destination: alan.address,
+                custom_payload: beginCell().endCell(),
+                forward_amount: 0n,
+                forward_payload: beginCell().endCell(),
+            }
+        );
+        expect(transferResult.transactions).toHaveTransaction({
+            from: alan.address,
+            to: nftItemAddr,
+            deploy: false,
+            success: true,
+        });
+
+        // Check NFTItem owner changed to Jacky
+        const ownerAfter = await nftItem.getOwner();
+        expect(ownerAfter.toString()).toEqual(jacky.address.toString());
     });
 });
