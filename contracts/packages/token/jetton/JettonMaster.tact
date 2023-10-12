@@ -17,9 +17,10 @@ struct JettonData {
 }
 
 message JettonMint {
-    origin: Address;      // address of origin mint request (may be wallet v4)
-    receiver: Address;    // address of receiver
-    amount: Int;          // amount of jettons to mint
+    origin: Address;        // address of origin mint request (may be wallet v4)
+    receiver: Address;      // address of receiver
+    amount: Int;            // amount of jettons to mint
+    custom_payload: Cell?;  // optional custom data
     forward_ton_amount: Int as coins;
     forward_payload: Slice as remaining;
 }
