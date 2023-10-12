@@ -62,6 +62,12 @@ message BuyAllToken {
     reserve_price: Int as coins;
 }
 
+message FractionTrade {
+    buy_out: Int as coins;
+    bidder: Address;
+}
+
+
 contract NFTFractionWallet with JettonWallet {
     balance: Int as coins = ton("0");
     owner: Address;
@@ -369,6 +375,7 @@ contract FNFTItem with NFTItemStandard, Lockable, Ownable {
     const defaultAuctionBidPeriod: Int = 86400; // 1 day
     const minimumSettableIncreasePercentage: Int = 100;
     const maximumMinPricePercentage: Int = 8000;
+    const auction_period: Int = 86400 * 14; // 14 day
 
     collection_address: Address;
     index: Int;
@@ -418,6 +425,18 @@ contract FNFTItem with NFTItemStandard, Lockable, Ownable {
         let nftAuctionAddress: Address = self.get_nft_auction_address(self.owner);
         let auctionInfo: AuctionInfo = self._fill_up_auction_info(self.owner, msg.reserve_price, msg.buynow_price, msg.auction_period, msg.beneficiary);
         let nftAuctionInit: StateInit = self.get_nft_auction_init(self.owner);
+        self._build_auction(nftAuctionAddress, auctionInfo, nftAuctionInit);
+    }
+
+    receive(msg: FractionTrade) {
+        let ctx: Context = context();
+        self.requireOwner();
+        self.ensureUnlocked();
+        self.lock();
+        let beneficiary: Address = ctx.sender; // Jetton Master
+        let nftAuctionAddress: Address = self.get_nft_auction_address(msg.bidder);
+        let auctionInfo: AuctionInfo = self._fill_up_auction_info(msg.bidder, msg.buy_out, 0, self.auction_period, beneficiary);
+        let nftAuctionInit: StateInit = self.get_nft_auction_init(msg.bidder);
         self._build_auction(nftAuctionAddress, auctionInfo, nftAuctionInit);
     }
     
@@ -664,7 +683,8 @@ contract NFTItemAuction {
         }
 
         let bidIncreaseAmount: Int = (self.auctionInfo.nftHighestBid * (10000 + self.auctionInfo.bidIncreasePercentage)) / 10000;
-        require(bidValue > bidIncreaseAmount, "Bid doesn't meet the minimum increase requirement");
+        require(bidValue > bidIncreaseAmount || buyNowPrice == 0, "Bid doesn't meet the minimum increase requirement");
+        //require(buyNowPrice != 0 && )
         // Send back previous highest bid to previous highest bidder.
         let prevNftHighestBidder: Address = self.auctionInfo.nftHighestBidder;
         let prevNftHighestBid: Int = self.auctionInfo.nftHighestBid;
