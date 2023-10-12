@@ -7,7 +7,8 @@ import "./packages/token/jetton/JettonMaster";
 import "./packages/token/jetton/JettonWallet";
 import "./packages/utils/Estimatable";
 import "./packages/utils/Lockable";
-
+import "./packages/token/nft/NFTAuction";
+import "./packages/token/nft/NFTAuctionMarket";
 @name(udict_set_ref)
 native udict_set_ref(dict: Cell?, key_len: Int, index: Int, value: Cell): Cell?; 
 
@@ -40,6 +41,10 @@ message IncreaseQuota {
 message WithdrawQuotaShop{
     amount: Int as coins;
     custom_payload: Cell;
+}
+
+message TransferAuctionPayload {
+    seller: Address;
 }
 
 contract NFTFractionWallet with JettonWallet {
@@ -323,6 +328,10 @@ contract FNFTItem with NFTItemStandard, Lockable, Ownable {
         return initOf NFTFraction(self.fraction_params.max_supply, myAddress(), self.fraction_params.jetton_content);
     }
 
+    inline fun get_fraction_auction_init(seller: Address): StateInit {
+        return initOf NFTFractionAuction(myAddress(), seller);
+    }
+
     inline fun fractionalize_validate(ctx: Context) {
         self.ensureUnlocked();
     }
@@ -374,13 +383,22 @@ contract FNFTItem with NFTItemStandard, Lockable, Ownable {
     //          Logic:
     //              if not whitelisted:
     //                  a. dwindles the quota by 1 (self.transfer)
-    //              send OwnershipAssigned to msg.new_owner
-    //              send Excesses to msg.response_destination
+    //              send OwnershipAssigned to msg.new_owner  (if sender is Fraction auction contract, send OwnershipAssigned to auction winner)
+    //              send Excesses to msg.response_destination (TODO: if sender is Fraction auction contract, send Excesses to Jetton master)
+    //              
     //       - If un-whilitsted and self.quota == 0, the nft will be fractionalized (send JettonMint to NFTFraction contract):
     //              a. a part of nft fraction (jetton) will be minted to the receiver
     //              b. the remain part of nft fraction (jetton) will be minted to the author
     override inline fun transfer(ctx: Context, msg: Transfer, remain: Int) {
-        let isWhitelisted: Bool = ctx.sender == self.author || ctx.sender == self.collection_address; // TODO: add Fraction auction contract
+        let payload: Slice = msg.custom_payload;
+        payload.skipBits(32);
+        let op: Int = payload.loadUint(32);
+        dump("%%%%%%% op:");
+        dump(op);
+        // let auctionSeller: Address = payload.loadAddress();
+        // dump("%%%%%%% seller:");
+        // dump(auctionSeller);
+        let isWhitelisted: Bool = ctx.sender == self.author || ctx.sender == self.collection_address || ctx.sender == self.get_fraction_auction_init(auctionSeller); // TODO: add Fraction auction contract
         if (isWhitelisted || self.quota > 0) {
             if (self.quota > 0 && !isWhitelisted) {
                 self.quota = self.quota - 1;
