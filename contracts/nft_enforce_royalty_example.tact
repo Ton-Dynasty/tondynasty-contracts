@@ -290,11 +290,12 @@ contract QuotaShop with Deployable, Estimatable {
         require(self.quota_amount >= msg.amount, "QuotaShop: Not enough quota");
         self.quota_amount = self.quota_amount - msg.amount;
         self.balance = self.balance + self.quota_price * msg.amount;
+        let remain: Int = self.estimate_rest_value(ctx) - (self.quota_price * msg.amount);
         send(SendParameters{
             to: self.nft_item,
-            value: 0,
+            value: remain,
             bounce: false,
-            mode: SendRemainingValue + SendIgnoreErrors,
+            mode: SendPayGasSeparately + SendIgnoreErrors,
             body: IncreaseQuota{
                 amount: msg.amount,
                 sender: ctx.sender
@@ -340,6 +341,10 @@ contract QuotaShop with Deployable, Estimatable {
 
     get fun debug_get_quota_amount(): Int {
         return self.quota_amount;
+    }
+
+    get fun debug_get_balance(): Int {
+        return self.balance;
     }
 }
 
