@@ -599,14 +599,14 @@ contract FNFTItem with NFTItemStandard, Lockable, Ownable {
                         prev_owner: ctx.sender,
                         forward_payload: msg.forward_payload
                     }.toCell()
-                }); 
+                });
             }
             remain = remain - ctx.readForwardFee(); 
             if (msg.response_destination != newAddress(0, 0) && remain > msg.forward_amount) { 
                 send(SendParameters{ 
                     to: msg.response_destination,
-                    value: remain - msg.forward_amount,
-                    mode: SendPayGasSeparately,
+                    value: 0,
+                    mode: SendRemainingValue,
                     body: Excesses { query_id: msg.query_id }.toCell()
                 });
             }
