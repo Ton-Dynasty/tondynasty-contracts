@@ -39,7 +39,7 @@ describe('QuotaShop', () => {
         const issueQuota: IssueQuota = {
             $$type: 'IssueQuota',
             amount: 1n,
-            price: toNano('0.01')
+            price: toNano('100')
         };
         let quotaShop = blockchain.openContract(await QuotaShop.fromAddress(quotaShopAddress));
         return await quotaShop.send(
@@ -63,7 +63,7 @@ describe('QuotaShop', () => {
         return await quotaShop.send(
             alice.getSender(),
             {
-                value: toNano('1'),
+                value: toNano('105'),
             },
             buyQuota
         );
@@ -164,7 +164,7 @@ describe('QuotaShop', () => {
 
         // Check that the quota was issued
         const quotaPrice = await quotaShop.getDebugGetQuotaPrice();
-        expect(quotaPrice).toEqual(toNano('0.01'));
+        expect(quotaPrice).toEqual(toNano('100'));
 
         const quotaAmount = await quotaShop.getDebugGetQuotaAmount();
         expect(quotaAmount).toEqual(1n);
@@ -200,5 +200,62 @@ describe('QuotaShop', () => {
         nftItem = blockchain.openContract(await FNFTItem.fromAddress(nftId0Address));
         const quota = await nftItem.getDebugGetQuota();
         expect(quota).toEqual(1n);
+    });
+
+    it('should withdraw', async () => {
+        const before_index = (await nftCollection.getGetCollectionData()).next_item_index;
+        const mintResult = await mintNftToAlice(nftCollection, alice);
+
+        // Check that the NFT was minted
+        const nftId = 0n;
+        const nftId0Address: Address = await nftCollection.getGetNftAddressByIndex(nftId);
+
+        let quotaShopAddress: Address = await nftCollection.getDebugGetQuotashopAddressByIndex(nftId);
+        quotaShop = blockchain.openContract(await QuotaShop.fromAddress(quotaShopAddress));
+
+        // Issue quota
+        const issueQuotaResult = await sendIssueQuota(author, quotaShopAddress);
+        const quotaPrice = await quotaShop.getDebugGetQuotaPrice();
+        const quotaAmount = await quotaShop.getDebugGetQuotaAmount();
+
+        // Buy quota
+        
+        const buyQuotaResult = await sendBuyQuota(alice, quotaShopAddress);
+
+        //Check that the balance was increased
+        const quotaShopBalance = await quotaShop.getDebugGetBalance();
+        expect(quotaShopBalance).toEqual(toNano('100'));
+        
+        
+        const before_balance = await author.getBalance();
+
+        console.log("quotaShopAddress: ", quotaShopAddress);
+        // Withdraw
+        const withdrawResult = await quotaShop.send(
+            author.getSender(),
+            {
+                value: toNano('1'),
+            },
+            "Withdraw"
+        );
+        printTransactionFees(withdrawResult.transactions);
+        prettyLogTransactions(withdrawResult.transactions);
+
+        const after_balance = await author.getBalance();
+        const balance_diff = after_balance - before_balance;
+        expect(withdrawResult.transactions).toHaveTransaction({
+            from: author.address,
+            to: quotaShopAddress,
+            success: true,
+        });
+
+        expect(withdrawResult.transactions).toHaveTransaction({
+            from: quotaShopAddress,
+            to: author.address,
+            success: true,
+        });
+
+        // Check that the balance was increased
+        expect(balance_diff).toBeGreaterThan(toNano('10'));
     });
 });
