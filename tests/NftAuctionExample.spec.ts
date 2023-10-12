@@ -81,6 +81,7 @@ describe('NFTAuctionExample', () => {
             reservePrice: reservePrice,
             buyNowPrice: buyNowPrice,
             auctionPeriod: auctionPeriod,
+            beneficiary: null,
         };
 
         return await nftAuctionMarket.send(

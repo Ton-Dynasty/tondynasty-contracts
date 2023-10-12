@@ -14,6 +14,7 @@ message SetUpAuction {
     reservePrice: Int as coins;     // minimum bid price to start the auction timer
     buyNowPrice: Int as coins;      // price at which the NFT can be directly bought
     auctionPeriod: Int as uint256;  // time when the auction ends after it starts
+    beneficiary: Address?;           // the address of the beneficiary
 }
 
 message ReviseSetUpAuction {
@@ -21,6 +22,8 @@ message ReviseSetUpAuction {
     reservePrice: Int as coins;     // minimum bid price to start the auction timer
     buyNowPrice: Int as coins;      // price at which the NFT can be directly bought
     auctionPeriod: Int as uint256;  // time when the auction ends after it starts
+    beneficiary: Address?;           // the address of the beneficiary
+    // TODO: beneficiary: Address?;           // the address of the beneficiary
 }
 
 message ReviseAuction {
@@ -60,6 +63,7 @@ struct AuctionInfo {
     nftSeller: Address;                     // the address of the seller
     whitelistedBuyer: Address;              // the seller can specify a whitelisted address for a sale (this is effectively a direct sale)
     nftRecipient: Address;                  // the bidder can specify a recipient for the NFT if their bid is successful
+    beneficiary: Address;                  // the address of the beneficiary
 }
 
 trait NFTAuctionMarketStandard {
@@ -107,9 +111,11 @@ trait NFTAuctionMarketStandard {
         let sellerAddress: Address = ctx.sender;
         let hashSellerNftAddress: Int = self.get_hash_seller_nft_address(sellerAddress, msg.nftAddress);
         self._auction_transfer_validate(hashSellerNftAddress);
-
+        if(msg.beneficiary == null) {
+            msg.beneficiary = sellerAddress;
+        }
         // Set up auction info
-        let auctionInfo: AuctionInfo = self._set_up_auction(sellerAddress, msg.nftAddress, msg.reservePrice, msg.buyNowPrice, msg.auctionPeriod); // set up auction
+        let auctionInfo: AuctionInfo = self._set_up_auction(sellerAddress, msg.nftAddress, msg.reservePrice, msg.buyNowPrice, msg.auctionPeriod, msg.beneficiary!!); // set up auction
         self._set_price_validate(msg.buyNowPrice, msg.reservePrice);
         let nftAuctionInit: StateInit = self._nft_auction_init(msg.nftAddress, sellerAddress);
         let nftAuctionAddress: Address = self.get_nft_auction_address(msg.nftAddress, sellerAddress);
@@ -153,9 +159,13 @@ trait NFTAuctionMarketStandard {
         // Get nft auction address
         let nftAuctionAddress: Address = self.get_nft_auction_address(msg.nftAddress, sellerAddress);
         self._auction_not_set_validate(nftAuctionAddress);
-        self._set_up_auction(sellerAddress, msg.nftAddress, msg.reservePrice, msg.buyNowPrice, msg.auctionPeriod); // Revise the auction info.
+        if(msg.beneficiary == null) {
+            msg.beneficiary = sellerAddress;
+        }
+        // Set up auction info
+        let auctionInfo: AuctionInfo = self._set_up_auction(sellerAddress, msg.nftAddress, msg.reservePrice, msg.buyNowPrice, msg.auctionPeriod, msg.beneficiary!!); // set up auction
         self.auctionOverCheck.set(nftAuctionAddress, msg.nftAddress);
-        let newAuctionInfo: AuctionInfo = self._set_up_auction(sellerAddress, msg.nftAddress, msg.reservePrice, msg.buyNowPrice, msg.auctionPeriod); // set up auction
+        let newAuctionInfo: AuctionInfo = self._set_up_auction(sellerAddress, msg.nftAddress, msg.reservePrice, msg.buyNowPrice, msg.auctionPeriod, msg.beneficiary!!); // set up auction
         send(SendParameters{
                 to: nftAuctionAddress,
                 value: 0,
@@ -194,12 +204,13 @@ trait NFTAuctionMarketStandard {
 
     virtual inline fun _parse_forward_payload(seller: Address, nftAddress: Address, payload: Slice) {
         // Parse payload
+        let beneficiary: Address = payload.loadAddress();
         let reservePrice: Int = payload.loadCoins();
         let buyNowPrice: Int = payload.loadCoins();
         let auctionPeriod: Int = payload.loadUint(256);
 
         // Set up auction info
-        let auctionInfo: AuctionInfo = self._set_up_auction(seller, nftAddress, reservePrice, buyNowPrice, auctionPeriod); // set up auction
+        let auctionInfo: AuctionInfo = self._set_up_auction(seller, nftAddress, reservePrice, buyNowPrice, auctionPeriod, beneficiary); // set up auction
         self._set_price_validate(buyNowPrice, reservePrice);
         let nftAuctionInit: StateInit = self._nft_auction_init(nftAddress, seller);
         let nftAuctionAddress: Address = self.get_nft_auction_address(nftAddress, seller);
@@ -243,19 +254,20 @@ trait NFTAuctionMarketStandard {
 
     // @dev Initializes an auction for a specified NFT with given parameters such as reserve price, buy now price, and auction duration.
     // @note If you want to use custom auction parameters or logic, consider overriding this function and AuctionInfo struct in a derived contract.
-    virtual inline fun _set_up_auction(sellerAddress: Address, nftAddress: Address, reservePrice: Int, buyNowPrice: Int, auctionPeriod: Int): AuctionInfo {
+    virtual inline fun _set_up_auction(sellerAddress: Address, nftAddress: Address, reservePrice: Int, buyNowPrice: Int, auctionPeriod: Int, beneficiary: Address): AuctionInfo {
         let hashSellerNftAddress: Int = self.get_hash_seller_nft_address(sellerAddress, nftAddress);
         return AuctionInfo {
-                bidIncreasePercentage: self.defaultBidIncreasePercentage,
-                auctionBidPeriod: self.defaultAuctionBidPeriod,
-                auctionPeriod: auctionPeriod,
-                reservePrice: reservePrice,
-                buyNowPrice: buyNowPrice,
-                nftHighestBid: 0,
-                nftHighestBidder: sellerAddress,
-                nftSeller: sellerAddress,
-                whitelistedBuyer: sellerAddress,
-                nftRecipient: sellerAddress
+            bidIncreasePercentage: self.defaultBidIncreasePercentage,
+            auctionBidPeriod: self.defaultAuctionBidPeriod,
+            auctionPeriod: auctionPeriod,
+            reservePrice: reservePrice,
+            buyNowPrice: buyNowPrice,
+            nftHighestBid: 0,
+            nftHighestBidder: sellerAddress,
+            nftSeller: sellerAddress,
+            whitelistedBuyer: sellerAddress,
+            nftRecipient: sellerAddress,
+            beneficiary: beneficiary
         };
     }
 

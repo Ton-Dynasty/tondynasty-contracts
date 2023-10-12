@@ -127,6 +127,9 @@ trait NFTAuctionStandard {
         // If this auction started, it will transfer NFT to highest bidder.
         // Else, it will transfer NFT to seller.
         if(self.auctionEndTime > 0) {
+            // Pay royalty to the creator of the NFT
+            // TODO: Implement royalty payment
+            
             // Pay winning bid amount to seller.
             self._send_winning_bid_amount();
             // Transfer NFT to buyer
@@ -179,11 +182,11 @@ trait NFTAuctionStandard {
 
     // @dev Transfers the highest bid amount to the seller
     virtual inline fun _send_winning_bid_amount() {
-        let seller: Address = self.auctionInfo.nftSeller;
+        let seller: Address = self.auctionInfo.beneficiary;
         let winningBidAmount: Int = self.auctionInfo.nftHighestBid;
         send(SendParameters{
             to: seller,
-            value: winningBidAmount, 
+            value: winningBidAmount - ton("0.06"), 
             mode: SendPayGasSeparately, 
             bounce: false,
             body: "Pay winning bid amount".asComment()
