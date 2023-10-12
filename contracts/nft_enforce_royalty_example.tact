@@ -54,6 +54,10 @@ message Trade {
     beneficiary: Address?;
 }
 
+message BuyAllToken {
+    reserve_price: Int as coins;
+}
+
 contract NFTFractionWallet with JettonWallet {
     balance: Int as coins = ton("0");
     owner: Address;
@@ -62,6 +66,18 @@ contract NFTFractionWallet with JettonWallet {
     init(owner: Address, jetton_master: Address) {
         self.owner = owner;
         self.jetton_master = jetton_master;
+    }
+
+    receive(msg: BuyAllToken) {
+        send(SendParameters{
+            to: self.jetton_master,
+            value: 0,
+            bounce: true,
+            mode: SendRemainingValue + SendIgnoreErrors,
+            body: BuyAllToken{ 
+                reserve_price: msg.reserve_price
+            }.toCell()
+        });
     }
 
     override inline fun calculate_jetton_wallet_init(owner_addr: Address): StateInit {
@@ -669,9 +685,6 @@ contract NFTItemAuction {
         // If this auction started, it will transfer NFT to highest bidder.
         // Else, it will transfer NFT to seller.
         if(self.auctionEndTime > 0) {
-            // Pay royalty to the creator of the NFT
-            // TODO: Implement royalty payment
-            
             // Pay winning bid amount to seller.
             self._send_winning_bid_amount();
             // Transfer NFT to buyer
