@@ -368,4 +368,52 @@ contract FNFTItem with NFTItemStandard, Lockable, Ownable {
         self.ensureUnlocked();
         require(ctx.sender == self.owner || ctx.sender == self.collection_address, "FNFTItem: Only the owner or collection can transfer the NFT item");
     }
+
+    virtual inline fun mint(ctx: Context, msg: Transfer) {
+        require(ctx.sender == self.collection_address, "NFTItemStandard: Only the collection can initialize the NFT item");
+        self.is_initialized = true;
+        self.owner = msg.new_owner;
+        send(SendParameters{
+            to: msg.response_destination,
+            value: 0,
+            mode:  SendIgnoreErrors + SendRemainingValue,
+            body: Excesses { query_id: msg.query_id }.toCell()
+        });
+    }
+
+    // @dev  transfer transfer nft with royalty enforcement
+    // @note - only whitelisted do not enforce royalty:
+    //          1. the sender is from author wallet address
+    //          2. the sender is NFT collection contract
+    //          3. TODO: the sender Fraction auction contract
+    //       - If un-whilitsted, the royalty will be enforced as follow:
+    //          1. if self.quota == 0, the nft will be fractionalized
+    //              a. a part of nft fraction (jetton) will be minted to the receiver
+    //              b. the remain part of nft fraction (jetton) will be minted to the author
+    //          2. if self.quota > 0, the nft will be transferred to the receiver, and dwindles the quota by 1  
+    virtual inline fun transfer(ctx: Context, msg: Transfer, remain: Int) {
+        self.owner = msg.new_owner;
+        if (msg.forward_amount > 0) {
+            send(SendParameters{
+                to: msg.new_owner,
+                value: msg.forward_amount,
+                mode: SendIgnoreErrors, 
+                bounce: false,
+                body: OwnershipAssigned{
+                    query_id: msg.query_id,
+                    prev_owner: ctx.sender,
+                    forward_payload: msg.forward_payload
+                }.toCell()
+            }); 
+        }
+        remain = remain - ctx.readForwardFee(); 
+        if (msg.response_destination != newAddress(0, 0) && remain > msg.forward_amount) { 
+            send(SendParameters{ 
+                to: msg.response_destination,
+                value: remain - msg.forward_amount,
+                mode: SendPayGasSeparately,
+                body: Excesses { query_id: msg.query_id }.toCell()
+            });
+        }
+    }
 }
