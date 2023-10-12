@@ -428,7 +428,6 @@ contract FNFTItem with NFTItemStandard, Lockable, Ownable {
         let ctx: Context = context();
         self.requireOwner();
         self.ensureUnlocked();
-        self.lock();
         self._buyNowPrice_validate(msg.buynow_price);
         let nftAuctionAddress: Address = self.get_nft_auction_address(self.owner);
         let auctionInfo: AuctionInfo = self._fill_up_auction_info(self.owner, msg.reserve_price, msg.buynow_price, msg.auction_period, msg.beneficiary);
@@ -440,8 +439,7 @@ contract FNFTItem with NFTItemStandard, Lockable, Ownable {
         let ctx: Context = context();
         let jettonMatserInit: StateInit = self.get_jetton_master_init();
         require(contractAddress(jettonMatserInit) == ctx.sender, "FNFTItem: Only the Jetton Master contract can trade the NFT item fraction");
-        self.ensureUnlocked();
-        self.lock();
+        self.ensureLocked();
         let beneficiary: Address = ctx.sender; // Jetton Master
         let nftAuctionAddress: Address = self.get_nft_auction_address(msg.bidder);
         let auctionInfo: AuctionInfo = self._fill_up_auction_info(msg.bidder, msg.buy_out, 0, self.auction_period, beneficiary);
@@ -588,7 +586,7 @@ contract FNFTItem with NFTItemStandard, Lockable, Ownable {
             transferAuctionPayload = self.loadTransferAuctionPayload((msg.custom_payload!!).asSlice());
         }
         let isSentByAuction: Bool = (transferAuctionPayload != null) && (ctx.sender == self.get_nft_auction_address((transferAuctionPayload!!).seller));
-        let isWhitelisted: Bool = ctx.sender == self.fraction_params.author || ctx.sender == self.collection_address  || isSentByAuction; // TODO: add Fraction auction contract
+        let isWhitelisted: Bool = ctx.sender == self.fraction_params.author || ctx.sender == self.collection_address  || isSentByAuction;
         if (isWhitelisted || self.quota > 0) {
             if (self.quota > 0 && !isWhitelisted) {
                 self.quota = self.quota - 1;
