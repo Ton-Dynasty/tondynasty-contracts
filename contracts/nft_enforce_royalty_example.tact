@@ -448,8 +448,8 @@ contract FNFTItem with NFTItemStandard, Lockable, Ownable {
 
     receive(msg: FractionTrade) {
         let ctx: Context = context();
-        let jettonMatserInit: StateInit = self.get_jetton_master_init();
-        require(contractAddress(jettonMatserInit) == ctx.sender, "FNFTItem: Only the Jetton Master contract can trade the NFT item fraction");
+        let jettonMasterInit: StateInit = self.get_jetton_master_init();
+        require(contractAddress(jettonMasterInit) == ctx.sender, "FNFTItem: Only the Jetton Master contract can trade the NFT item fraction");
         self.ensureLocked();
         let beneficiary: Address = ctx.sender; // Jetton Master
         let nftAuctionAddress: Address = self.get_nft_auction_address(msg.bidder);
