@@ -29,25 +29,25 @@ message(0xbac2f9a4) Compose {
     new_owner: Address;
 }
 
-message IssueQuota {
+message(0x2e5cd8d7) IssueQuota {
     amount: Int as uint32;
     price: Int as coins;
 }
 
-message BuyQuota {
+message(0x56f76a58) BuyQuota {
     amount: Int as uint32;
 }
 
-message IncreaseQuota {
+message(0x3b0da424) IncreaseQuota {
     amount: Int as uint32;
 }
 
-message WithdrawQuotaShop{
+message(0x286cc02a) WithdrawQuotaShop{
     amount: Int as coins;
     custom_payload: Cell;
 }
 
-message TransferAuctionPayload {
+message(0x4056ceb8) TransferAuctionPayload {
     seller: Address;
 }
 
@@ -439,7 +439,6 @@ contract FNFTItem with NFTItemStandard, Lockable, Ownable {
         let ctx: Context = context();
         self.requireOwner();
         self.ensureUnlocked();
-        self.lock();
         self._buyNowPrice_validate(msg.buynow_price);
         let nftAuctionAddress: Address = self.get_nft_auction_address(self.owner);
         let auctionInfo: AuctionInfo = self._fill_up_auction_info(self.owner, msg.reserve_price, msg.buynow_price, msg.auction_period, msg.beneficiary);
@@ -451,8 +450,7 @@ contract FNFTItem with NFTItemStandard, Lockable, Ownable {
         let ctx: Context = context();
         let jettonMatserInit: StateInit = self.get_jetton_master_init();
         require(contractAddress(jettonMatserInit) == ctx.sender, "FNFTItem: Only the Jetton Master contract can trade the NFT item fraction");
-        self.ensureUnlocked();
-        self.lock();
+        self.ensureLocked();
         let beneficiary: Address = ctx.sender; // Jetton Master
         let nftAuctionAddress: Address = self.get_nft_auction_address(msg.bidder);
         let auctionInfo: AuctionInfo = self._fill_up_auction_info(msg.bidder, msg.buy_out, 0, self.auction_period, beneficiary);
@@ -567,11 +565,7 @@ contract FNFTItem with NFTItemStandard, Lockable, Ownable {
         return ps.loadUint(32);
     }
     
-    inline fun storeTransferAuctionPayload(payload: TransferAuctionPayload): Cell {
-        let builder: Builder = beginCell();
-        builder.storeAddress(payload.seller);
-        return builder.endCell();
-    }
+
     
     inline fun loadTransferAuctionPayload(payload: Slice): TransferAuctionPayload {
         let seller: Address = payload.loadAddress();
@@ -585,12 +579,12 @@ contract FNFTItem with NFTItemStandard, Lockable, Ownable {
     //          WhiteListed:
     //              1. the sender is from author wallet address
     //              2. the sender is NFT collection contract
-    //              3. TODO: the sender Fraction auction contract
+    //              3. the sender Fraction auction contract
     //          Logic:
     //              if not whitelisted:
     //                  a. dwindles the quota by 1 (self.transfer)
     //              send OwnershipAssigned to msg.new_owner  (if sender is Fraction auction contract, send OwnershipAssigned to auction winner)
-    //              send Excesses to msg.response_destination (TODO: if sender is Fraction auction contract, send Excesses to Jetton master)
+    //              send Excesses to msg.response_destination (if sender is Fraction auction contract, send Excesses to Jetton master)
     //              
     //       - If un-whilitsted and self.quota == 0, the nft will be fractionalized (send JettonMint to NFTFraction contract):
     //              a. a part of nft fraction (jetton) will be minted to the receiver
@@ -598,11 +592,12 @@ contract FNFTItem with NFTItemStandard, Lockable, Ownable {
     override inline fun transfer(ctx: Context, msg: Transfer, remain: Int) {
         let transferAuctionPayload: TransferAuctionPayload? = null;
         let op: Int = self.loadOp(msg.custom_payload);
-        if (op == 0x4056ceb8) {
+        
+        if (op == 0x4056ceb8) { // TransferAuctionPayload
             transferAuctionPayload = self.loadTransferAuctionPayload((msg.custom_payload!!).asSlice());
         }
         let isSentByAuction: Bool = (transferAuctionPayload != null) && (ctx.sender == self.get_nft_auction_address((transferAuctionPayload!!).seller));
-        let isWhitelisted: Bool = ctx.sender == self.fraction_params.author || ctx.sender == self.collection_address  || isSentByAuction; // TODO: add Fraction auction contract
+        let isWhitelisted: Bool = ctx.sender == self.fraction_params.author || ctx.sender == self.collection_address  || isSentByAuction;
         if (isWhitelisted || self.quota > 0) {
             if (self.quota > 0 && !isWhitelisted) {
                 self.quota = self.quota - 1;
@@ -623,12 +618,23 @@ contract FNFTItem with NFTItemStandard, Lockable, Ownable {
             }
             remain = remain - ctx.readForwardFee(); 
             if (msg.response_destination != newAddress(0, 0) && remain > msg.forward_amount) { 
-                send(SendParameters{ 
-                    to: msg.response_destination,
-                    value: 0,
-                    mode: SendRemainingValue,
-                    body: Excesses { query_id: msg.query_id }.toCell()
-                });
+                if (op == 0x4056ceb8) { // TransferAuctionPayload
+                    send(SendParameters{ 
+                        to: msg.response_destination,
+                        value: 0,
+                        mode: SendRemainingValue,
+                        body: "EndFractionAuction".asComment()
+                    });
+                }
+                else {
+                    send(SendParameters{ 
+                        to: msg.response_destination,
+                        value: 0,
+                        mode: SendRemainingValue,
+                        body: Excesses { query_id: msg.query_id }.toCell()
+                    });
+                }
+                
             }
         } else {
             self.fractionalize_validate(ctx);
@@ -835,10 +841,19 @@ contract NFTItemAuction {
         self.auctionEndTime = now() + self.auctionInfo.auctionPeriod;
     }
 
+    // @dev Stores the payload for the TransferAuction function
+    inline fun storeTransferAuctionPayload(payload: TransferAuctionPayload): Slice {
+        let builder: Builder = beginCell();
+        builder.storeAddress(payload.seller);
+        return builder.asSlice();
+    }
     // @dev Transfer the NFT to the highest bidder
     // @note If you want change msg value, you should make sure that is enough for NFT Auction market contract to transfer NFT.
     inline fun _transfer_nft(buyer: Address) {
-        let custom_payload: Cell = beginCell().storeAddress(self.auctionInfo.nftSeller).endCell();
+        let transferAuctionPayload: TransferAuctionPayload = TransferAuctionPayload {
+            seller: self.auctionInfo.nftSeller
+        };
+        let custom_payload: Cell = self.storeTransferAuctionPayload(transferAuctionPayload).asCell();
         send(SendParameters{
             to: self.nft_item, 
             value: ton("0.06"), 
