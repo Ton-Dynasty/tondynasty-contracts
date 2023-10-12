@@ -695,6 +695,10 @@ contract FNFTItem with NFTItemStandard, Lockable, Ownable {
         return self.get_nft_auction_address(seller);
     }
 
+    get fun debug_get_quota(): Int {
+        return self.quota;
+    }
+
 }
 
 contract NFTItemAuction {
