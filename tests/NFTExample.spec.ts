@@ -1,6 +1,6 @@
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton-community/sandbox';
 import { Cell, beginCell, toNano } from 'ton-core';
-import { ExampleNFTCollection, RoyaltyParams } from '../wrappers/NFTExample';
+import { ExampleNFTCollection, RoyaltyParams } from '../wrappers/NFTExample_ExampleNFTCollection';
 import '@ton-community/test-utils';
 
 const OFFCHAIN_TAG = 0x01;

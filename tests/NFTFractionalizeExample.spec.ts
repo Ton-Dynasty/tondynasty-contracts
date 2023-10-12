@@ -1,9 +1,9 @@
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton-community/sandbox';
-import { FNFTCollection, FractionParams, RoyaltyParams } from '../wrappers/FNFTCollection';
+import { FNFTCollection, FractionParams, RoyaltyParams } from '../wrappers/FNFT_FNFTCollection';
 import '@ton-community/test-utils';
 import { sha256_sync } from 'ton-crypto';
 import { Cell, Dictionary, beginCell, toNano } from 'ton-core';
-import { ExampleJettonMaster } from '../wrappers/JettonExample';
+import { ExampleJettonMaster } from '../wrappers/JettonExample_ExampleJettonMaster';
 
 const OFFCHAIN_TAG = 0x01;
 const BASE_URL = 'https://s.getgems.io/nft-staging/c/628f6ab8077060a7a8d52d63/';

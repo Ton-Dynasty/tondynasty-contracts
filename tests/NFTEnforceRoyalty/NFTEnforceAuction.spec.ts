@@ -1,8 +1,8 @@
 import { Blockchain, SandboxContract, TreasuryContract, printTransactionFees } from '@ton-community/sandbox';
 import { Address, beginCell, toNano } from 'ton-core';
-import { FNFTCollection, RoyaltyParams, Trade } from '../../wrappers/FNFTCollection';
-import { FNFTItem } from '../../wrappers/FNFTItem';
-import { NFTItemAuction } from '../../wrappers/NFTItemAuction';
+import { FNFTCollection, RoyaltyParams, Trade } from '../../wrappers/FNFTEnforce_FNFTCollection';
+import { FNFTItem } from '../../wrappers/FNFTEnforce_FNFTItem';
+import { NFTItemAuction } from '../../wrappers/FNFTEnforce_NFTItemAuction';
 import '@ton-community/test-utils';
 
 describe('NFTAuctionExample', () => {

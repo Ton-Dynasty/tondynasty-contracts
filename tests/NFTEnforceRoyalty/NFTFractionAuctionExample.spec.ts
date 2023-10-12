@@ -1,7 +1,7 @@
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton-community/sandbox';
 import '@ton-community/test-utils';
 import { sha256_sync } from 'ton-crypto';
-import { FNFTCollection, FractionParams, RoyaltyParams } from '../../wrappers/FNFTCollection';
+import { FNFTCollection, FractionParams, RoyaltyParams } from '../../wrappers/FNFTEnforce_FNFTCollection';
 import { Cell, Dictionary, beginCell, toNano } from 'ton-core';
 
 const OFFCHAIN_TAG = 0x01;
@@ -78,4 +78,6 @@ describe('NFTFractionAuctionExample', () => {
             success: true,
         });
     });
+
+    it('should fractionize');
 });

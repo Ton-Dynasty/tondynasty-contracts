@@ -1,8 +1,8 @@
 import { Blockchain, SandboxContract, TreasuryContract, printTransactionFees } from '@ton-community/sandbox';
 import { Cell, beginCell, toNano } from 'ton-core';
-import { ExampleNFTCollection, RoyaltyParams } from '../wrappers/NFTExample';
-import { ExampleJettonMaster, JettonBurn } from '../wrappers/ExampleJettonMaster';
-import { ExampleJettonWallet, JettonTransfer } from '../wrappers/ExampleJettonWallet';
+import { ExampleNFTCollection, RoyaltyParams } from '../wrappers/NFTExample_ExampleNFTCollection';
+import { ExampleJettonMaster, JettonBurn } from '../wrappers/JettonExample_ExampleJettonMaster';
+import { ExampleJettonWallet, JettonTransfer } from '../wrappers/JettonExample_ExampleJettonWallet';
 import '@ton-community/test-utils';
 
 describe('NFTExample', () => {
