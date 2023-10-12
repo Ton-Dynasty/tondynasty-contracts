@@ -13,7 +13,7 @@ import "./packages/token/nft/NFTAuctionMarket";
 native udict_set_ref(dict: Cell?, key_len: Int, index: Int, value: Cell): Cell?; 
 
 const DEFAULT_RESERVE_PRICE: Int = ton("0.01");
-const DEFAULT_DEPLOY_FEE: Int = ton("0.18");
+const DEFAULT_DEPLOY_FEE: Int = ton("0.15");
 
 message FractionParams {
     author: Address;
@@ -41,6 +41,7 @@ message(0x56f76a58) BuyQuota {
 
 message(0x3b0da424) IncreaseQuota {
     amount: Int as uint32;
+    sender: Address;
 }
 
 message(0x286cc02a) WithdrawQuotaShop{
@@ -263,6 +264,8 @@ contract NFTFraction with JettonMaster, Estimatable, Deployable, Lockable {
 }
 
 contract QuotaShop with Deployable, Estimatable {
+    override const minTonsForStorage: Int = ton("0.04");
+
     quota_amount: Int as uint32 = 0;
     quota_price: Int as coins = 0;
     author: Address;
@@ -285,27 +288,18 @@ contract QuotaShop with Deployable, Estimatable {
         let ctx: Context = context();
         require(self.quota_amount > 0, "QuotaShop: Quota is not issued");
         require(self.quota_amount >= msg.amount, "QuotaShop: Not enough quota");
-        require(ctx.value >= self.quota_price * msg.amount, "QuotaShop: Not enough money");
-        let remain: Int = self.estimate_rest_value(ctx) - ctx.readForwardFee();
-        send(SendParameters{
-            to: self.nft_item,
-            value: 0,
-            bounce: false,
-            mode: SendPayGasSeparately,
-            body: IncreaseQuota{
-                amount: msg.amount
-            }.toCell()
-        });
-
         self.quota_amount = self.quota_amount - msg.amount;
         self.balance = self.balance + self.quota_price * msg.amount;
-
+        let remain: Int = self.estimate_rest_value(ctx) - (self.quota_price * msg.amount);
         send(SendParameters{
-            to: ctx.sender,
+            to: self.nft_item,
             value: remain,
             bounce: false,
-            mode: SendIgnoreErrors,
-            body: "Success".asComment()
+            mode: SendPayGasSeparately + SendIgnoreErrors,
+            body: IncreaseQuota{
+                amount: msg.amount,
+                sender: ctx.sender
+            }.toCell()
         });
     }
 
@@ -326,16 +320,31 @@ contract QuotaShop with Deployable, Estimatable {
     }
 
     receive(msg: BuildQuotaShop){
-        send(SendParameters{
-            to: msg.sender,
-            value: 0,
-            bounce: false,
-            mode: SendRemainingValue + SendIgnoreErrors
-        });
+        let ctx: Context = context();
+        if (ctx.value > 0) {
+            send(SendParameters{
+                to: msg.sender,
+                value: 0,
+                bounce: false,
+                mode: SendRemainingValue + SendIgnoreErrors
+            });
+        }
     }
 
     bounced (src: bounced<WithdrawQuotaShop>){
         self.balance = self.balance + src.amount;
+    }
+
+    get fun debug_get_quota_price(): Int {
+        return self.quota_price;
+    }
+
+    get fun debug_get_quota_amount(): Int {
+        return self.quota_amount;
+    }
+
+    get fun debug_get_balance(): Int {
+        return self.balance;
     }
 }
 
@@ -431,6 +440,10 @@ contract FNFTCollection with NFTCollectionStandard, NFTRoyaltyStandard, Estimata
     get fun debug_fraction_param(index: Int): FractionParams {
         return self.get_fraction_param(index);
     }
+
+    get fun debug_get_quotashop_address_by_index(index: Int): Address {
+        return contractAddress(self.get_quotashop_init(index));
+    }
 }
 
 contract FNFTItem with NFTItemStandard, Lockable, Ownable {
@@ -466,6 +479,12 @@ contract FNFTItem with NFTItemStandard, Lockable, Ownable {
         let ctx: Context = context();
         require(ctx.sender == contractAddress(self.get_quotashop_init()), "FNFTItem: Only the QuotaShop contract can increase the quota");
         self.quota = self.quota + msg.amount;
+        send(SendParameters{
+            to: msg.sender,
+            value: 0,
+            bounce: false,
+            mode: SendRemainingValue + SendIgnoreErrors
+        });
     }
 
     receive(msg: Trade) {
@@ -686,6 +705,10 @@ contract FNFTItem with NFTItemStandard, Lockable, Ownable {
 
     get fun debug_nft_auction_address(seller: Address): Address {
         return self.get_nft_auction_address(seller);
+    }
+
+    get fun debug_get_quota(): Int {
+        return self.quota;
     }
 
 }
@@ -966,6 +989,5 @@ contract NFTItemAuction {
     get fun get_auction_bid_period(): Int {
         return self.auctionBidPeriod;
     }
-
 
 }

@@ -1,10 +1,18 @@
-import { Blockchain, SandboxContract, TreasuryContract, printTransactionFees } from '@ton-community/sandbox';
+import {
+    Blockchain,
+    SandboxContract,
+    TreasuryContract,
+    prettyLogTransaction,
+    prettyLogTransactions,
+    printTransactionFees,
+} from '@ton-community/sandbox';
 import { Address, Cell, Sender, beginCell, toNano } from 'ton-core';
 import { FNFTCollection, FractionParams, RoyaltyParams } from '../../wrappers/FNFTEnforce_FNFTCollection';
 import { NFTFraction } from '../../wrappers/FNFTEnforce_NFTFraction';
 import { FNFTItem, JettonTransfer } from '../../wrappers/FNFTEnforce_FNFTItem';
 import { buildJettonContent, buildNFTCollectionContent } from '../../utils/ton-tep64';
 import '@ton-community/test-utils';
+import { QuotaShop } from '../../wrappers/FNFTEnforce_QuotaShop';
 
 describe('NFTExample', () => {
     let blockchain: Blockchain;
@@ -13,6 +21,7 @@ describe('NFTExample', () => {
     let author: SandboxContract<TreasuryContract>;
     let nftCollection: SandboxContract<FNFTCollection>;
     let nftItem: SandboxContract<FNFTItem>;
+    let quotaShop: SandboxContract<QuotaShop>;
     let royaltyParams: RoyaltyParams;
     let collectionContent: Cell;
     let fractionParams: FractionParams;
@@ -55,7 +64,7 @@ describe('NFTExample', () => {
 
     it('should deploy', async () => {});
 
-    it('Should Alan mint NFT#1 and transfer to Jacky', async () => {
+    it('Should Alan mint NFT#1 and full transfer to Jacky', async () => {
         const beforeItemIndex = (await nftCollection.getGetCollectionData()).next_item_index;
 
         // Alan mint NFT#1
@@ -84,10 +93,110 @@ describe('NFTExample', () => {
             success: true,
         });
 
+        // Check NFTCollection deploys a new QuotaShop
+        const quotaShopAddr = await nftCollection.getDebugGetQuotashopAddressByIndex(beforeItemIndex);
+        expect(mintResult.transactions).toHaveTransaction({
+            from: nftCollection.address,
+            to: quotaShopAddr,
+            deploy: true,
+            success: true,
+        });
+
         // Check NFTCollection index increased by 1
         const afterItemIndex = (await nftCollection.getGetCollectionData()).next_item_index;
         expect(afterItemIndex).toEqual(beforeItemIndex + 1n);
 
-        printTransactionFees(mintResult.transactions);
+        // Should Alan be the owner of NFT#1
+        const nftItem = blockchain.openContract(FNFTItem.fromAddress(nftItemAddr));
+        const owner = await nftItem.getOwner();
+        expect(owner.toString()).toEqual(alan.address.toString());
+
+        // Should Author issue quota to QuotaShop #1
+        quotaShop = blockchain.openContract(QuotaShop.fromAddress(quotaShopAddr));
+        const quotaIssueTx = await quotaShop.send(
+            author.getSender(),
+            {
+                value: toNano('0.01'),
+            },
+            {
+                $$type: 'IssueQuota',
+                amount: 1n,
+                price: toNano('0.01'),
+            }
+        );
+        expect(quotaIssueTx.transactions).toHaveTransaction({
+            from: author.address,
+            to: quotaShopAddr,
+            deploy: false,
+            success: true,
+        });
+
+        // Buy one quota from QuotaShop#1 should increase the NFT item #1 quota by 1
+        const quotaBefore = await nftItem.getDebugGetQuota();
+        quotaShop = blockchain.openContract(QuotaShop.fromAddress(quotaShopAddr));
+        const buyResult = await quotaShop.send(
+            alan.getSender(),
+            {
+                value: toNano('1'),
+            },
+            {
+                $$type: 'BuyQuota',
+                amount: 1n,
+            }
+        );
+        // Check Alan send a transaction to QuotaShop
+        expect(buyResult.transactions).toHaveTransaction({
+            from: alan.address,
+            to: quotaShopAddr,
+            deploy: false,
+            success: true,
+        });
+
+        // Check QuotaShop send IncreaseQuota to NFTItem
+        expect(buyResult.transactions).toHaveTransaction({
+            from: quotaShopAddr,
+            to: nftItemAddr,
+            deploy: false,
+            success: true,
+        });
+
+        // Check NFTItem quota repay to alan
+        expect(buyResult.transactions).toHaveTransaction({
+            from: nftItemAddr,
+            to: alan.address,
+            deploy: false,
+            success: true,
+        });
+
+        // Check NFTItem quota increased by 1
+        const quotaAfter = await nftItem.getDebugGetQuota();
+        expect(quotaAfter).toEqual(quotaBefore + 1n);
+
+        // Check transfer NFT Item to Jacky
+        const transferResult = await nftItem.send(
+            alan.getSender(),
+            {
+                value: toNano('1'),
+            },
+            {
+                $$type: 'Transfer',
+                query_id: 0n,
+                new_owner: jacky.address,
+                response_destination: alan.address,
+                custom_payload: beginCell().endCell(),
+                forward_amount: 0n,
+                forward_payload: beginCell().endCell(),
+            }
+        );
+        expect(transferResult.transactions).toHaveTransaction({
+            from: alan.address,
+            to: nftItemAddr,
+            deploy: false,
+            success: true,
+        });
+
+        // Check NFTItem owner changed to Jacky
+        const ownerAfter = await nftItem.getOwner();
+        expect(ownerAfter.toString()).toEqual(jacky.address.toString());
     });
 });
