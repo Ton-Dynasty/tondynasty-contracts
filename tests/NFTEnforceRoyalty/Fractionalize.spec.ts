@@ -1,8 +1,8 @@
 import { Blockchain, SandboxContract, TreasuryContract, printTransactionFees } from '@ton-community/sandbox';
 import { Address, Cell, Sender, beginCell, toNano } from 'ton-core';
-import { FNFTCollection, FractionParams, RoyaltyParams } from '../../wrappers/FNFTCollection';
-import { NFTFraction } from '../../wrappers/FNFTFraction';
-import { FNFTItem, JettonTransfer } from '../../wrappers/FNFTItem';
+import { FNFTCollection, FractionParams, RoyaltyParams } from '../../wrappers/FNFTEnforce_FNFTCollection';
+import { NFTFraction } from '../../wrappers/FNFTEnforce_NFTFraction';
+import { FNFTItem, JettonTransfer } from '../../wrappers/FNFTEnforce_FNFTItem';
 import { buildJettonContent, buildNFTCollectionContent } from '../../utils/ton-tep64';
 import '@ton-community/test-utils';
 
@@ -14,7 +14,7 @@ describe('NFTExample', () => {
     let nftCollection: SandboxContract<FNFTCollection>;
     let nftItem: SandboxContract<FNFTItem>;
     let royaltyParams: RoyaltyParams;
-    let jettonContent: Cell;
+    let collectionContent: Cell;
     let fractionParams: FractionParams;
     const reservePrice: bigint = toNano('0.01');
     const maxSupply: bigint = 100n;
@@ -24,7 +24,7 @@ describe('NFTExample', () => {
         alan = await blockchain.treasury('alan');
         jacky = await blockchain.treasury('jacky');
         author = await blockchain.treasury('author');
-        jettonContent = beginCell().endCell();
+        collectionContent = buildNFTCollectionContent();
         royaltyParams = {
             $$type: 'RoyaltyParams',
             numerator: 1n,
@@ -32,7 +32,7 @@ describe('NFTExample', () => {
             destination: author.address,
         };
         nftCollection = blockchain.openContract(
-            await FNFTCollection.fromInit(alan.address, jettonContent, royaltyParams, author.address)
+            await FNFTCollection.fromInit(alan.address, collectionContent, royaltyParams, author.address)
         );
         const deployResult = await nftCollection.send(
             alan.getSender(),
@@ -60,7 +60,7 @@ describe('NFTExample', () => {
         const mintResult = await nftCollection.send(
             alan.getSender(),
             {
-                value: toNano('0.1'),
+                value: toNano('1'),
             },
             'Mint'
         );
@@ -84,8 +84,15 @@ describe('NFTExample', () => {
             jetton_content: buildJettonContent(beforeItemIndex),
         };
         nftItem = blockchain.openContract(
-            await FNFTItem.fromInit(nftCollection.address, beforeItemIndex, alan.address, jettonContent, fractionParams)
+            await FNFTItem.fromInit(
+                nftCollection.address,
+                beforeItemIndex,
+                alan.address,
+                collectionContent,
+                fractionParams
+            )
         );
+
         expect(mintResult.transactions).toHaveTransaction({
             from: nftCollection.address,
             to: nftItem.address,
