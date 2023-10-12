@@ -556,11 +556,7 @@ contract FNFTItem with NFTItemStandard, Lockable, Ownable {
         return ps.loadUint(32);
     }
     
-    inline fun storeTransferAuctionPayload(payload: TransferAuctionPayload): Slice {
-        let builder: Builder = beginCell();
-        builder.storeAddress(payload.seller);
-        return builder.asSlice();
-    }
+
     
     inline fun loadTransferAuctionPayload(payload: Slice): TransferAuctionPayload {
         let seller: Address = payload.loadAddress();
@@ -824,10 +820,19 @@ contract NFTItemAuction {
         self.auctionEndTime = now() + self.auctionInfo.auctionPeriod;
     }
 
+    // @dev Stores the payload for the TransferAuction function
+    inline fun storeTransferAuctionPayload(payload: TransferAuctionPayload): Slice {
+        let builder: Builder = beginCell();
+        builder.storeAddress(payload.seller);
+        return builder.asSlice();
+    }
     // @dev Transfer the NFT to the highest bidder
     // @note If you want change msg value, you should make sure that is enough for NFT Auction market contract to transfer NFT.
     inline fun _transfer_nft(buyer: Address) {
-        let custom_payload: Cell = beginCell().storeAddress(self.auctionInfo.nftSeller).endCell();
+        let transferAuctionPayload: TransferAuctionPayload = TransferAuctionPayload {
+            seller: self.auctionInfo.nftSeller
+        };
+        let custom_payload: Cell = self.storeTransferAuctionPayload(transferAuctionPayload).asCell();
         send(SendParameters{
             to: self.nft_item, 
             value: ton("0.06"), 
