@@ -259,6 +259,7 @@ contract FNFTItem with NFTItemStandard, Lockable, Ownable {
                 origin: ctx.sender,
                 receiver: ctx.sender, 
                 amount: self.fraction_params.max_supply,
+                custom_payload: emptyCell(),
                 forward_ton_amount: 0,
                 forward_payload: emptySlice()
             }.toCell(),

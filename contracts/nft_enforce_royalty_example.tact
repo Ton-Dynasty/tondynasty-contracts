@@ -79,13 +79,13 @@ contract NFTFraction with JettonMaster, Estimatable, Deployable {
     total_supply: Int as coins = 0; // Total supply of the NFT item
     owner: Address;                 // NFT Item address
     jetton_content: Cell;
-    author: Address;
 
-    init(reserve_price: Int, max_supply: Int, author: Address, owner: Address, jetton_content: Cell) {
-        self.total_supply = max_supply;
+    max_supply: Int as coins;       // Max supply of the NFT item
+
+    init(reserve_price: Int, max_supply: Int, owner: Address, jetton_content: Cell) {
+        self.max_supply = max_supply;
         self.owner = owner;
         self.jetton_content = jetton_content;
-        self.author = author;
     }
 
     // @dev  When mint is bounced, the total supply should be decreased
@@ -138,13 +138,29 @@ contract NFTFraction with JettonMaster, Estimatable, Deployable {
         }
     }
 
+    override inline fun _mint_validate(ctx: Context, msg: JettonMint) {
+        require(ctx.sender == self.owner, "JettonMaster: Sender is not a NFT Item contract");
+        require(self.mintable, "JettonMaster: Jetton is not mintable");
+        require(self.total_supply + msg.amount <= self.total_supply, "JettonMaster: Exceeds max supply");
+    }
+
     override inline fun _mint(ctx: Context, msg: JettonMint) {
+        // Parse royalty param from forward_payload slice in JettonMint
+        require(msg.custom_payload != null, "JettonMaster: Custom payload is null");
+        
+        // Try to parse custom_payload as royalty_param(Slice)
+        let payload: Cell = msg.custom_payload!!;
+        let slice: Slice = payload.asSlice();
+        let numerator: Int = slice.loadInt(16);
+        let denominator: Int = slice.loadInt(16);
+        let destination: Address = slice.loadAddress();
+
         let receiverInit: StateInit = self.calculate_jetton_wallet_init(msg.receiver);
-        let authorInit: StateInit = self.calculate_jetton_wallet_init(self.author);
+        let authorInit: StateInit = self.calculate_jetton_wallet_init(destination);
         self.total_supply = self.total_supply + msg.amount;
         let rest_value: Int = self.estimate_rest_value(ctx);
         rest_value = rest_value - ctx.readForwardFee() - msg.forward_ton_amount;
-        // To author's jetton wallet
+        // To receiver's jetton wallet
         send(SendParameters{
             to: contractAddress(receiverInit),
             value: 0,
@@ -161,7 +177,7 @@ contract NFTFraction with JettonMaster, Estimatable, Deployable {
             code: receiverInit.code,
             data: receiverInit.data
         });
-        // To receiver's jetton wallet
+        // To author's jetton wallet
         send(SendParameters{
             to: contractAddress(authorInit),
             value: rest_value,
@@ -180,11 +196,6 @@ contract NFTFraction with JettonMaster, Estimatable, Deployable {
         });
     }
 
-    override inline fun _mint_validate(ctx: Context, msg: JettonMint) {
-        require(ctx.sender == self.owner, "JettonMaster: Sender is not a NFT Item contract");
-        require(self.mintable, "JettonMaster: Jetton is not mintable");
-        require(self.total_supply + msg.amount <= self.total_supply, "JettonMaster: Exceeds max supply");
-    }
 }
 
 contract QuotaShop with Deployable, Estimatable {
@@ -428,7 +439,7 @@ contract FNFTItem with NFTItemStandard, Lockable, Ownable {
     }
     
     inline fun get_jetton_master_init(): StateInit {
-        return initOf NFTFraction(DEFAULT_RESERVE_PRICE, self.fraction_params.max_supply, self.fraction_params.author,myAddress(), self.fraction_params.jetton_content);
+        return initOf NFTFraction(DEFAULT_RESERVE_PRICE, self.fraction_params.max_supply, myAddress(), self.fraction_params.jetton_content);
     }
 
     inline fun fractionalize_validate(ctx: Context) {
@@ -448,6 +459,7 @@ contract FNFTItem with NFTItemStandard, Lockable, Ownable {
                 origin: ctx.sender,
                 receiver: ctx.sender, 
                 amount: self.fraction_params.max_supply,
+                custom_payload: emptyCell(),
                 forward_ton_amount: 0,
                 forward_payload: emptySlice()
             }.toCell(),

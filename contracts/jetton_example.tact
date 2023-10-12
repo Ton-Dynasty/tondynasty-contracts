@@ -34,6 +34,7 @@ contract ExampleJettonMaster with JettonMaster, Deployable {
             origin: ctx.sender,
             receiver: ctx.sender,
             amount: ton("1"),
+            custom_payload: emptyCell(),
             forward_ton_amount: 0,
             forward_payload: emptySlice()
         };
