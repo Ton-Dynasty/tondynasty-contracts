@@ -359,7 +359,21 @@ contract FNFTCollection with NFTCollectionStandard, NFTRoyaltyStandard, Estimata
                 code: nftItemInit.code,
                 data: nftItemInit.data
             });
+        let quotashopInit: StateInit = self.get_quotashop_init(self.next_item_index);
+        send(SendParameters{
+            to: contractAddress(quotashopInit),
+            value: 0,
+            bounce: false,
+            mode: SendRemainingValue,
+            body: "Deploy".asComment(),
+            code: quotashopInit.code,
+            data: quotashopInit.data
+        });
         self.next_item_index = self.next_item_index + 1;
+    }
+
+    inline fun get_quotashop_init(index: Int): StateInit {
+        return initOf QuotaShop(self.author, contractAddress(self._get_nft_item_state_init(index)));
     }
 
     inline fun get_fraction_param(index: Int): FractionParams {
