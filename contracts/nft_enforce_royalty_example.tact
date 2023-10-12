@@ -653,7 +653,12 @@ contract NFTItemAuction {
         let ctx: Context = context();
         self._owner_validate(ctx);
         self._initialized_validate();
-        self._set_price_validate(msg.auctionInfo.buyNowPrice, msg.auctionInfo.reservePrice);
+        if(msg.auctionInfo.buyNowPrice != 0) {
+            self._set_price_validate(msg.auctionInfo.buyNowPrice, msg.auctionInfo.reservePrice);
+        }
+        else {
+            msg.auctionInfo.nftHighestBid = msg.auctionInfo.reservePrice;
+        }
         self.auctionInfo = msg.auctionInfo;
         self.isInitialized = 1;
         self.auctionBidPeriod = 0;
@@ -670,44 +675,13 @@ contract NFTItemAuction {
         let ctx: Context = context();
         let buyer: Address = ctx.sender;
         require(buyer != self.auctionInfo.nftSeller, "NFT Seller cannot bid");
-        let bidValue: Int = ctx.value;
         let buyNowPrice: Int = self.auctionInfo.buyNowPrice;
-        if(bidValue >= buyNowPrice && buyNowPrice != 0) {
-            self.auctionInfo.nftHighestBid = bidValue;
-            // Pay winning bid amount to seller.
-            self._send_winning_bid_amount();
-            // Transfer NFT to buyer
-            self._transfer_nft(buyer);
-            self.isInitialized = 0;
-            return;
+        if(buyNowPrice != 0) {
+            self._trade_bid(ctx, buyNowPrice);
         }
-
-        let bidIncreaseAmount: Int = (self.auctionInfo.nftHighestBid * (10000 + self.auctionInfo.bidIncreasePercentage)) / 10000;
-        require(bidValue > bidIncreaseAmount || buyNowPrice == 0, "Bid doesn't meet the minimum increase requirement");
-        //require(buyNowPrice != 0 && )
-        // Send back previous highest bid to previous highest bidder.
-        let prevNftHighestBidder: Address = self.auctionInfo.nftHighestBidder;
-        let prevNftHighestBid: Int = self.auctionInfo.nftHighestBid;
-        let paybackTon: Int = max(prevNftHighestBid - self.minTonsForStorage - self.gasConsumption,0);
-        send(SendParameters{
-            to: prevNftHighestBidder,
-            value: paybackTon, 
-            mode: SendPayGasSeparately, 
-            bounce: false,
-            body: "Pay bid money back to the prevNftHighestBidder".asComment()
-        });
-        // Update highest bid and Transfer ton back to previous highest bidder.
-        self.auctionInfo.nftHighestBidder = ctx.sender;
-        self.auctionInfo.nftHighestBid = bidValue;
-        // If bid value is greater than reserve price, then the auction is being started.
-        if(bidValue > self.auctionInfo.reservePrice) {
-            self._update_auction_bid_period();
-            if(self.auctionEndTime == 0) { 
-                // If the auction start, then set the auction end time.
-                self._update_auction_end_time();
-            }
+        else {
+            self._fraction_bid(ctx);
         }
-        
     }
 
     // @dev Settles the auction, transferring the NFT to the highest bidder and the funds to the seller
@@ -759,9 +733,63 @@ contract NFTItemAuction {
         }
         else {
             // Transfer NFT to seller
-            let seller: Address = self.auctionInfo.nftSeller;
+            let seller: Address = self.auctionInfo.beneficiary;
             self._transfer_nft(seller);
             self.isInitialized = 0;
+        }
+    }
+
+    inline fun _trade_bid(ctx: Context, buyNowPrice: Int) {
+        let bidValue: Int = ctx.value;
+        let buyer: Address = ctx.sender;
+        if(bidValue >= buyNowPrice) {
+            self.auctionInfo.nftHighestBid = bidValue;
+            // Pay winning bid amount to seller.
+            self._send_winning_bid_amount();
+            // Transfer NFT to buyer
+            self._transfer_nft(buyer);
+            self.isInitialized = 0;
+            return;
+        }
+        let bidIncreaseAmount: Int = (self.auctionInfo.nftHighestBid * (10000 + self.auctionInfo.bidIncreasePercentage)) / 10000;
+        require(bidValue > bidIncreaseAmount, "Bid doesn't meet the minimum increase requirement");
+        self._send_prev_bid_back(ctx.sender, bidValue);
+        // If bid value is greater than reserve price, then the auction is being started.
+        if(bidValue > self.auctionInfo.reservePrice) {
+            self._update_auction();
+        }
+    }
+
+    inline fun _fraction_bid(ctx: Context) {
+        let bidValue: Int = ctx.value;
+        require(bidValue > self.auctionInfo.nftHighestBid, "FractionBid doesn't larger than the highest bid.");
+        self._send_prev_bid_back(ctx.sender, bidValue);
+        // If bid value is greater than reserve price, then the auction is being started.
+        self._update_auction();
+    }
+
+    inline fun _send_prev_bid_back(bidder: Address, bidValue: Int) {
+        // Send back previous highest bid to previous highest bidder.
+        let prevNftHighestBidder: Address = self.auctionInfo.nftHighestBidder;
+        let prevNftHighestBid: Int = self.auctionInfo.nftHighestBid;
+        let paybackTon: Int = max(prevNftHighestBid - self.minTonsForStorage - self.gasConsumption,0);
+        send(SendParameters{
+            to: prevNftHighestBidder,
+            value: paybackTon, 
+            mode: SendPayGasSeparately, 
+            bounce: false,
+            body: "Pay bid money back to the prevNftHighestBidder".asComment()
+        });
+        // Update highest bid and Transfer ton back to previous highest bidder.
+        self.auctionInfo.nftHighestBidder = bidder;
+        self.auctionInfo.nftHighestBid = bidValue;
+    }
+
+    inline fun _update_auction() {
+        self._update_auction_bid_period();
+        if(self.auctionEndTime == 0) { 
+            // If the auction start, then set the auction end time.
+            self._update_auction_end_time();
         }
     }
 
