@@ -5,7 +5,8 @@
         "start": "blueprint run",
         "build": "rm -rf ./build/* && blueprint build --all",
         "dev": "blueprint build",
-        "test": "jest"
+        "test": "jest",
+        "gen": "sh ./scripts/genWrapper.sh"
     },
     "license": "MIT",
     "devDependencies": {

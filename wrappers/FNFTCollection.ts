@@ -1,1 +1,1 @@
-export * from '../build/FNFT/tact_FNFTCollection';
+export * from '../build/FNFTEnforce/tact_FNFTCollection';
