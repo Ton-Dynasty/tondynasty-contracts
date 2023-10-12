@@ -25,7 +25,7 @@ find "$SRC_DIR" -type f -name 'tact_*.ts' | while read -r FILEPATH; do
     BASENAME="${FILENAME%.*}"
     
     # Define the new file path
-    NEW_FILE="$DEST_DIR/$DIR_NAME${BASENAME#tact_}.ts"
+    NEW_FILE="$DEST_DIR/${DIR_NAME}_${BASENAME#tact_}.ts"
     
     # Write the export statement to the new file
     echo "export * from '../$SRC_DIR/${BASENAME}';" > "$NEW_FILE"
