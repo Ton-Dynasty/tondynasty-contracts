@@ -788,7 +788,8 @@ contract NFTItemAuction {
 
     inline fun _fraction_bid(ctx: Context) {
         let bidValue: Int = ctx.value;
-        require(bidValue > self.auctionInfo.nftHighestBid, "FractionBid doesn't larger than the highest bid.");
+        let bidIncreaseAmount: Int = (self.auctionInfo.nftHighestBid * (10000 + self.auctionInfo.bidIncreasePercentage)) / 10000;
+        require(bidValue > bidIncreaseAmount, "FractionBid doesn't larger than the highest bid.");
         self._send_prev_bid_back(ctx.sender, bidValue);
         // If bid value is greater than reserve price, then the auction is being started.
         self._update_auction();
