@@ -916,7 +916,7 @@ contract NFTItemAuction {
                 query_id: 0,
                 new_owner: buyer,
                 response_destination: buyer,
-                custom_payload: emptyCell(),
+                custom_payload: custom_payload,
                 forward_amount: 0,
                 forward_payload: emptySlice()
             }.toCell()
