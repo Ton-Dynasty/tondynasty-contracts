@@ -13,7 +13,7 @@ import "./packages/token/nft/NFTAuctionMarket";
 native udict_set_ref(dict: Cell?, key_len: Int, index: Int, value: Cell): Cell?; 
 
 const DEFAULT_RESERVE_PRICE: Int = ton("0.01");
-const DEFAULT_DEPLOY_FEE: Int = ton("0.18");
+const DEFAULT_DEPLOY_FEE: Int = ton("0.15");
 
 message FractionParams {
     author: Address;
@@ -326,12 +326,15 @@ contract QuotaShop with Deployable, Estimatable {
     }
 
     receive(msg: BuildQuotaShop){
-        send(SendParameters{
-            to: msg.sender,
-            value: 0,
-            bounce: false,
-            mode: SendRemainingValue + SendIgnoreErrors
-        });
+        let ctx: Context = context();
+        if (ctx.value > 0) {
+            send(SendParameters{
+                to: msg.sender,
+                value: 0,
+                bounce: false,
+                mode: SendRemainingValue + SendIgnoreErrors
+            });
+        }
     }
 
     bounced (src: bounced<WithdrawQuotaShop>){
@@ -430,6 +433,10 @@ contract FNFTCollection with NFTCollectionStandard, NFTRoyaltyStandard, Estimata
 
     get fun debug_fraction_param(index: Int): FractionParams {
         return self.get_fraction_param(index);
+    }
+
+    get fun debug_get_quotashop_address_by_index(index: Int): Address {
+        return contractAddress(self.get_quotashop_init(index));
     }
 }
 
@@ -966,6 +973,5 @@ contract NFTItemAuction {
     get fun get_auction_bid_period(): Int {
         return self.auctionBidPeriod;
     }
-
 
 }

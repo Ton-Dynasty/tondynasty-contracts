@@ -84,6 +84,8 @@ describe('NFTExample', () => {
             success: true,
         });
 
+        // Check NFTCollection deploys a new QuotaShop
+
         // Check NFTCollection index increased by 1
         const afterItemIndex = (await nftCollection.getGetCollectionData()).next_item_index;
         expect(afterItemIndex).toEqual(beforeItemIndex + 1n);
