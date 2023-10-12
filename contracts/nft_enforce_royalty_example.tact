@@ -12,7 +12,11 @@ import "./packages/token/nft/NFTAuctionMarket";
 @name(udict_set_ref)
 native udict_set_ref(dict: Cell?, key_len: Int, index: Int, value: Cell): Cell?; 
 
+const DEFAULT_RESERVE_PRICE: Int = ton("0.01");
+
 message FractionParams {
+    author: Address;
+    reserve_price: Int as coins;
     max_supply: Int as coins;
     jetton_content: Cell;
 }
@@ -75,17 +79,22 @@ contract NFTFraction with JettonMaster, Estimatable, Deployable {
     total_supply: Int as coins = 0; // Total supply of the NFT item
     owner: Address;                 // NFT Item address
     jetton_content: Cell;
+    author: Address;
 
-    max_supply: Int as coins;
-
-    init(max_supply: Int, owner: Address, jetton_content: Cell) {
-        self.max_supply = max_supply;
+    init(reserve_price: Int, max_supply: Int, author: Address, owner: Address, jetton_content: Cell) {
+        self.total_supply = max_supply;
         self.owner = owner;
         self.jetton_content = jetton_content;
+        self.author = author;
+    }
+
+    // @dev  When mint is bounced, the total supply should be decreased
+    bounced(src: bounced<JettonInternalTransfer>) {
+        self.total_supply = self.total_supply - src.amount;
     }
 
     receive(msg: TryRedeem) {
-        require(self.total_supply == self.max_supply, "NFTFraction: Total supply is not equal to max supply");
+        require(self.total_supply == self.total_supply, "NFTFraction: Total supply is not equal to max supply");
         let ctx: Context = context();
         require(ctx.sender == self.owner, "NFTFraction: Only NFT Item contract can try to redeem");
         let walletInit: StateInit = self.calculate_jetton_wallet_init(msg.sender);
@@ -129,10 +138,52 @@ contract NFTFraction with JettonMaster, Estimatable, Deployable {
         }
     }
 
+    override inline fun _mint(ctx: Context, msg: JettonMint) {
+        let receiverInit: StateInit = self.calculate_jetton_wallet_init(msg.receiver);
+        let authorInit: StateInit = self.calculate_jetton_wallet_init(self.author);
+        self.total_supply = self.total_supply + msg.amount;
+        let rest_value: Int = self.estimate_rest_value(ctx);
+        rest_value = rest_value - ctx.readForwardFee() - msg.forward_ton_amount;
+        // To author's jetton wallet
+        send(SendParameters{
+            to: contractAddress(receiverInit),
+            value: 0,
+            bounce: true,
+            mode: SendPayGasSeparately,
+            body: JettonInternalTransfer{ 
+                query_id: 0,
+                amount: msg.amount,
+                response_address: msg.origin,
+                from: myAddress(),
+                forward_ton_amount: msg.forward_ton_amount,
+                forward_payload: msg.forward_payload
+            }.toCell(),
+            code: receiverInit.code,
+            data: receiverInit.data
+        });
+        // To receiver's jetton wallet
+        send(SendParameters{
+            to: contractAddress(authorInit),
+            value: rest_value,
+            bounce: true,
+            mode: SendIgnoreErrors,
+            body: JettonInternalTransfer{ 
+                query_id: 0,
+                amount: msg.amount,
+                response_address: msg.origin,
+                from: myAddress(),
+                forward_ton_amount: msg.forward_ton_amount,
+                forward_payload: msg.forward_payload
+            }.toCell(),
+            code: authorInit.code,
+            data: authorInit.data
+        });
+    }
+
     override inline fun _mint_validate(ctx: Context, msg: JettonMint) {
         require(ctx.sender == self.owner, "JettonMaster: Sender is not a NFT Item contract");
         require(self.mintable, "JettonMaster: Jetton is not mintable");
-        require(self.total_supply + msg.amount <= self.max_supply, "JettonMaster: Exceeds max supply");
+        require(self.total_supply + msg.amount <= self.total_supply, "JettonMaster: Exceeds max supply");
     }
 }
 
@@ -262,6 +313,8 @@ contract FNFTCollection with NFTCollectionStandard, NFTRoyaltyStandard, Estimata
         let jetton_content: Builder = beginCell().storeInt(0x00, 8).storeUint(1, 1).storeRef(content_cell!!);
 
         return FractionParams {
+            author: self.owner_address,
+            reserve_price: DEFAULT_RESERVE_PRICE,
             max_supply: ton("100"),
             jetton_content: jetton_content.endCell()
         };
@@ -293,8 +346,6 @@ contract FNFTItem with NFTItemStandard, Lockable, Ownable {
     is_initialized: Bool = false;
     is_locked: Bool = false;
     quota: Int as uint32 = 0;
-    author: Address;
-
     fraction_params: FractionParams;
     
     init(collection_address: Address, index: Int, owner: Address, individual_content: Cell, fraction_params: FractionParams) {
@@ -303,7 +354,6 @@ contract FNFTItem with NFTItemStandard, Lockable, Ownable {
         self.owner = owner;
         self.individual_content = individual_content;
         self.fraction_params = fraction_params;
-        self.author = newAddress(0, 0); // TODO: need to be changed
     }
 
     receive(msg: Compose) {
@@ -379,11 +429,11 @@ contract FNFTItem with NFTItemStandard, Lockable, Ownable {
     }
 
     inline fun get_quotashop_init(): StateInit {
-        return initOf QuotaShop(self.author, myAddress());
+        return initOf QuotaShop(self.fraction_params.author, myAddress());
     }
     
     inline fun get_jetton_master_init(): StateInit {
-        return initOf NFTFraction(self.fraction_params.max_supply, myAddress(), self.fraction_params.jetton_content);
+        return initOf NFTFraction(DEFAULT_RESERVE_PRICE, self.fraction_params.max_supply, self.fraction_params.author,myAddress(), self.fraction_params.jetton_content);
     }
 
     inline fun fractionalize_validate(ctx: Context) {
@@ -443,7 +493,7 @@ contract FNFTItem with NFTItemStandard, Lockable, Ownable {
     //              a. a part of nft fraction (jetton) will be minted to the receiver
     //              b. the remain part of nft fraction (jetton) will be minted to the author
     override inline fun transfer(ctx: Context, msg: Transfer, remain: Int) {
-        let isWhitelisted: Bool = ctx.sender == self.author || ctx.sender == self.collection_address; // TODO: add Fraction auction contract
+        let isWhitelisted: Bool = ctx.sender == self.fraction_params.author || ctx.sender == self.collection_address; // TODO: add Fraction auction contract
         if (isWhitelisted || self.quota > 0) {
             if (self.quota > 0 && !isWhitelisted) {
                 self.quota = self.quota - 1;
