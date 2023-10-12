@@ -13,6 +13,7 @@ import "./packages/token/nft/NFTAuctionMarket";
 native udict_set_ref(dict: Cell?, key_len: Int, index: Int, value: Cell): Cell?; 
 
 const DEFAULT_RESERVE_PRICE: Int = ton("0.01");
+const DEFAULT_DEPLOY_FEE: Int = ton("0.18");
 
 message FractionParams {
     author: Address;
@@ -325,7 +326,12 @@ contract QuotaShop with Deployable, Estimatable {
     }
 
     receive(msg: BuildQuotaShop){
-        self.balance = 0;
+        send(SendParameters{
+            to: msg.sender,
+            value: 0,
+            bounce: false,
+            mode: SendRemainingValue + SendIgnoreErrors
+        });
     }
 
     bounced (src: bounced<WithdrawQuotaShop>){
@@ -351,10 +357,12 @@ contract FNFTCollection with NFTCollectionStandard, NFTRoyaltyStandard, Estimata
     receive("Mint") {
         let ctx: Context = context();
         let nftItemInit: StateInit = self._get_nft_item_state_init(self.next_item_index);
-        let remain: Int = self.estimate_rest_value(ctx);
+        let remain: Int = self.estimate_rest_value(ctx) - DEFAULT_DEPLOY_FEE * 2;
+        let quotashopInit: StateInit = self.get_quotashop_init(self.next_item_index);
+        self.next_item_index = self.next_item_index + 1;
         send(SendParameters{
                 to: contractAddress(nftItemInit), 
-                value: ton("0.05"), 
+                value: DEFAULT_DEPLOY_FEE, 
                 bounce: false,
                 mode: SendPayGasSeparately,
                 body: Transfer {
@@ -368,20 +376,17 @@ contract FNFTCollection with NFTCollectionStandard, NFTRoyaltyStandard, Estimata
                 code: nftItemInit.code,
                 data: nftItemInit.data
             });
-        remain = remain - ctx.readForwardFee();
-        let quotashopInit: StateInit = self.get_quotashop_init(self.next_item_index);
         send(SendParameters{
             to: contractAddress(quotashopInit),
-            value: ton("0.05"),
+            value: remain,
             bounce: false,
-            mode: SendPayGasSeparately,
+            mode: SendIgnoreErrors,
             body: BuildQuotaShop {
                 sender: ctx.sender
             }.toCell(),
             code: quotashopInit.code,
             data: quotashopInit.data
         });
-        self.next_item_index = self.next_item_index + 1;
     }
 
     inline fun get_quotashop_init(index: Int): StateInit {

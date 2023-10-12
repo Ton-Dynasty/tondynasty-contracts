@@ -56,6 +56,8 @@ describe('NFTExample', () => {
     it('should deploy', async () => {});
 
     it('Should Alan mint NFT#1 and transfer to Jacky', async () => {
+        const beforeItemIndex = (await nftCollection.getGetCollectionData()).next_item_index;
+
         // Alan mint NFT#1
         const mintResult = await nftCollection.send(
             alan.getSender(),
@@ -64,8 +66,6 @@ describe('NFTExample', () => {
             },
             'Mint'
         );
-
-        const beforeItemIndex = (await nftCollection.getGetCollectionData()).next_item_index;
 
         // Check Alan send a transaction to NFTCollection
         expect(mintResult.transactions).toHaveTransaction({
@@ -76,26 +76,10 @@ describe('NFTExample', () => {
         });
 
         // Check NFTCollection deploys a new NFTItem
-        fractionParams = {
-            $$type: 'FractionParams',
-            author: author.address,
-            reserve_price: reservePrice,
-            max_supply: maxSupply,
-            jetton_content: buildJettonContent(beforeItemIndex),
-        };
-        nftItem = blockchain.openContract(
-            await FNFTItem.fromInit(
-                nftCollection.address,
-                beforeItemIndex,
-                alan.address,
-                collectionContent,
-                fractionParams
-            )
-        );
-
+        const nftItemAddr = await nftCollection.getGetNftAddressByIndex(beforeItemIndex);
         expect(mintResult.transactions).toHaveTransaction({
             from: nftCollection.address,
-            to: nftItem.address,
+            to: nftItemAddr,
             deploy: true,
             success: true,
         });
