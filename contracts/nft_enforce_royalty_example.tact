@@ -13,7 +13,7 @@ import "./packages/token/nft/NFTAuctionMarket";
 native udict_set_ref(dict: Cell?, key_len: Int, index: Int, value: Cell): Cell?; 
 
 const DEFAULT_RESERVE_PRICE: Int = ton("0.01");
-const DEFAULT_DEPLOY_FEE: Int = ton("0.15");
+const DEFAULT_DEPLOY_FEE: Int = ton("0.2");
 
 message FractionParams {
     author: Address;
@@ -124,6 +124,10 @@ contract NFTFractionWallet with JettonWallet {
     }
     override inline fun _burn_validate(ctx: Context, msg: JettonBurn) {}
     override inline fun _burn_tokens(ctx: Context, msg: JettonBurn) {}
+
+    get fun debug_get_balance(): Int {
+        return self.balance;
+    }
 }
 
 contract NFTFraction with JettonMaster, Estimatable, Deployable, Lockable {
@@ -203,62 +207,68 @@ contract NFTFraction with JettonMaster, Estimatable, Deployable, Lockable {
         self.ensureUnlocked();
         require(ctx.sender == self.owner, "JettonMaster: Sender is not a NFT Item contract");
         require(self.mintable, "JettonMaster: Jetton is not mintable");
-        require(self.total_supply + msg.amount <= self.total_supply, "JettonMaster: Exceeds max supply");
+        require(self.total_supply + msg.amount <= self.max_supply, "JettonMaster: Exceeds max supply");
     }
 
     override inline fun _mint(ctx: Context, msg: JettonMint) {
         // Parse royalty param from forward_payload slice in JettonMint
         require(msg.custom_payload != null, "JettonMaster: Custom payload is null");
-        
         // Try to parse custom_payload as royalty_param(Slice)
         let payload: Cell = msg.custom_payload!!;
         let slice: Slice = payload.asSlice();
-        let numerator: Int = slice.loadInt(16);
-        let denominator: Int = slice.loadInt(16);
+        let numerator: Int = slice.loadUint(16);
+        let denominator: Int = slice.loadUint(16);
         let destination: Address = slice.loadAddress();
 
         let receiverInit: StateInit = self.calculate_jetton_wallet_init(msg.receiver);
         let authorInit: StateInit = self.calculate_jetton_wallet_init(destination);
         self.total_supply = self.total_supply + msg.amount;
         let rest_value: Int = self.estimate_rest_value(ctx);
-        rest_value = rest_value - ctx.readForwardFee() - msg.forward_ton_amount;
+        rest_value = rest_value - ctx.readForwardFee() - msg.forward_ton_amount * 2;
+        let royalty_fraction: Int = msg.amount * numerator / denominator;
+        let remain_fraction: Int = msg.amount - royalty_fraction;
 
-        let royalty_amount: Int = msg.amount * numerator / denominator;
-        let remain_amount: Int = msg.amount - royalty_amount;
-        // To receiver's jetton wallet
-        send(SendParameters{
-            to: contractAddress(receiverInit),
-            value: 0,
-            bounce: true,
-            mode: SendPayGasSeparately,
-            body: JettonInternalTransfer{ 
-                query_id: 0,
-                amount: remain_amount,
-                response_address: msg.origin,
-                from: myAddress(),
-                forward_ton_amount: msg.forward_ton_amount,
-                forward_payload: msg.forward_payload
-            }.toCell(),
-            code: receiverInit.code,
-            data: receiverInit.data
-        });
         // To author's jetton wallet
         send(SendParameters{
             to: contractAddress(authorInit),
-            value: rest_value,
-            bounce: true,
+            value: msg.forward_ton_amount,
+            bounce: false,
             mode: SendIgnoreErrors,
             body: JettonInternalTransfer{ 
                 query_id: 0,
-                amount: royalty_amount,
+                amount: royalty_fraction,
                 response_address: msg.origin,
                 from: myAddress(),
-                forward_ton_amount: msg.forward_ton_amount,
-                forward_payload: msg.forward_payload
+                forward_ton_amount: 0,
+                forward_payload: emptySlice()
             }.toCell(),
             code: authorInit.code,
             data: authorInit.data
         });
+        // To receiver's jetton wallet
+        send(SendParameters{
+            to: contractAddress(receiverInit),
+            value: msg.forward_ton_amount,
+            bounce: false,
+            mode: SendIgnoreErrors,
+            body: JettonInternalTransfer{ 
+                query_id: 0,
+                amount: remain_fraction,
+                response_address: msg.origin,
+                from: myAddress(),
+                forward_ton_amount: 0,
+                forward_payload: emptySlice()
+            }.toCell(),
+            code: receiverInit.code,
+            data: receiverInit.data
+        });
+        send(SendParameters{
+            to: msg.origin,
+            value: rest_value,
+            bounce: false,
+            mode: SendIgnoreErrors
+        });
+
     }
 
 }
@@ -421,7 +431,7 @@ contract FNFTCollection with NFTCollectionStandard, NFTRoyaltyStandard, Estimata
 
     // @dev _get_nft_item_state_init returns the initCode of NFTItem
     override inline fun _get_nft_item_state_init(index: Int): StateInit {
-        return initOf FNFTItem(myAddress(), index, self.owner_address, self.collection_content, self.get_fraction_param(index));
+        return initOf FNFTItem(myAddress(), index, self.owner_address, self.collection_content, self.royalty_params, self.get_fraction_param(index));
     }
 
     get fun debug_fraction_param(index: Int): FractionParams {
@@ -451,14 +461,16 @@ contract FNFTItem with NFTItemStandard, Lockable, Ownable {
     is_locked: Bool = false;
     quota: Int as uint32 = 0;
     fraction_params: FractionParams;
+    royalty_params: RoyaltyParams;
     
     nonce: Int as uint32 = 0;
     
-    init(collection_address: Address, index: Int, owner: Address, individual_content: Cell, fraction_params: FractionParams) {
+    init(collection_address: Address, index: Int, owner: Address, individual_content: Cell, royalty_params: RoyaltyParams, fraction_params: FractionParams) {
         self.collection_address = collection_address;
         self.index = index;
         self.owner = owner;
         self.individual_content = individual_content;
+        self.royalty_params = royalty_params;
         self.fraction_params = fraction_params;
     }
 
@@ -554,14 +566,15 @@ contract FNFTItem with NFTItemStandard, Lockable, Ownable {
 
     
 
-    inline fun fractionalize_validate(ctx: Context) {
+    inline fun fractionalize_validate(ctx: Context, msg: Transfer) {
         self.ensureUnlocked();
     }
 
-    inline fun fractionalize(ctx: Context) {
+    inline fun fractionalize(ctx: Context, msg: Transfer) {
         self.lock();
         self.owner = newAddress(0, 0);
         let nftFractionInit: StateInit = self.get_jetton_master_init();
+        let custom_payload: Cell = beginCell().storeUint(self.royalty_params.numerator, 16).storeUint(self.royalty_params.denominator, 16).storeAddress(self.royalty_params.destination).endCell();
         send(SendParameters{
             to: contractAddress(nftFractionInit),
             value: 0,
@@ -569,10 +582,10 @@ contract FNFTItem with NFTItemStandard, Lockable, Ownable {
             mode: SendRemainingValue + SendIgnoreErrors,
             body: JettonMint {
                 origin: ctx.sender,
-                receiver: ctx.sender, 
+                receiver: msg.new_owner,
                 amount: self.fraction_params.max_supply,
-                custom_payload: emptyCell(),
-                forward_ton_amount: 0,
+                custom_payload: custom_payload,
+                forward_ton_amount: DEFAULT_DEPLOY_FEE,
                 forward_payload: emptySlice()
             }.toCell(),
             code: nftFractionInit.code,
@@ -660,7 +673,7 @@ contract FNFTItem with NFTItemStandard, Lockable, Ownable {
                     send(SendParameters{ 
                         to: msg.response_destination,
                         value: 0,
-                        mode: SendRemainingValue,
+                        mode: SendRemainingValue + SendIgnoreErrors,
                         body: "EndFractionAuction".asComment()
                     });
                 }
@@ -668,15 +681,15 @@ contract FNFTItem with NFTItemStandard, Lockable, Ownable {
                     send(SendParameters{ 
                         to: msg.response_destination,
                         value: 0,
-                        mode: SendRemainingValue,
+                        mode: SendRemainingValue + SendIgnoreErrors,
                         body: Excesses { query_id: msg.query_id }.toCell()
                     });
                 }
                 
             }
         } else {
-            self.fractionalize_validate(ctx);
-            self.fractionalize(ctx);
+            self.fractionalize_validate(ctx, msg);
+            self.fractionalize(ctx, msg);
         }
     }
 
@@ -698,6 +711,9 @@ contract FNFTItem with NFTItemStandard, Lockable, Ownable {
         return self.quota;
     }
 
+    get fun debug_get_jetton_master_address(): Address {
+        return contractAddress(self.get_jetton_master_init());
+    }
 }
 
 contract NFTItemAuction {

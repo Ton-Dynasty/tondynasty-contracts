@@ -8,11 +8,13 @@ import {
 } from '@ton-community/sandbox';
 import { Address, Cell, Sender, beginCell, toNano } from 'ton-core';
 import { FNFTCollection, FractionParams, RoyaltyParams } from '../../wrappers/FNFTEnforce_FNFTCollection';
+import { NFTFractionWallet } from '../../wrappers/FNFTEnforce_NFTFractionWallet';
 import { NFTFraction } from '../../wrappers/FNFTEnforce_NFTFraction';
 import { FNFTItem, JettonTransfer } from '../../wrappers/FNFTEnforce_FNFTItem';
 import { buildJettonContent, buildNFTCollectionContent } from '../../utils/ton-tep64';
 import '@ton-community/test-utils';
 import { QuotaShop } from '../../wrappers/FNFTEnforce_QuotaShop';
+import { JettonMaster } from 'ton';
 
 describe('NFTExample', () => {
     let blockchain: Blockchain;
@@ -198,5 +200,71 @@ describe('NFTExample', () => {
         // Check NFTItem owner changed to Jacky
         const ownerAfter = await nftItem.getOwner();
         expect(ownerAfter.toString()).toEqual(jacky.address.toString());
+    });
+
+    it('Should Alan mint NFT#1 and transfer it, 99% fraction goes to Jacky and 1% to Author', async () => {
+        const beforeItemIndex = (await nftCollection.getGetCollectionData()).next_item_index;
+        // Alan mint NFT#1
+        await nftCollection.send(
+            alan.getSender(),
+            {
+                value: toNano('1'),
+            },
+            'Mint'
+        );
+        nftItem = blockchain.openContract(
+            FNFTItem.fromAddress(await nftCollection.getGetNftAddressByIndex(beforeItemIndex))
+        );
+
+        // Alan transfer NFT#1 to Jacky
+        const fractionTx = await nftItem.send(
+            alan.getSender(),
+            {
+                value: toNano('1'),
+            },
+            {
+                $$type: 'Transfer',
+                query_id: 0n,
+                new_owner: jacky.address,
+                response_destination: alan.address,
+                custom_payload: beginCell().endCell(),
+                forward_amount: 0n,
+                forward_payload: beginCell().endCell(),
+            }
+        );
+
+        expect(fractionTx.transactions).toHaveTransaction({
+            from: alan.address,
+            to: nftItem.address,
+            deploy: false,
+            success: true,
+        });
+
+        const jettonMaster = blockchain.openContract(
+            NFTFraction.fromAddress(await nftItem.getDebugGetJettonMasterAddress())
+        );
+
+        expect(fractionTx.transactions).toHaveTransaction({
+            from: nftItem.address,
+            to: jettonMaster.address,
+            deploy: true,
+            success: true,
+        });
+        printTransactionFees(fractionTx.transactions);
+        prettyLogTransactions(fractionTx.transactions);
+
+        // Check author receive 1% fraction (jetton)
+        const authorJettonWallet = blockchain.openContract(
+            NFTFractionWallet.fromAddress(await jettonMaster.getGetWalletAddress(author.address))
+        );
+        const authorJettonCount = await authorJettonWallet.getDebugGetBalance();
+        expect(authorJettonCount).toEqual(toNano('1'));
+
+        // Check jacky receive 99% fraction (jetton)
+        const jackyJettonWallet = blockchain.openContract(
+            NFTFractionWallet.fromAddress(await jettonMaster.getGetWalletAddress(jacky.address))
+        );
+        const jackyJettonCount = await jackyJettonWallet.getDebugGetBalance();
+        expect(jackyJettonCount).toEqual(toNano('99'));
     });
 });
