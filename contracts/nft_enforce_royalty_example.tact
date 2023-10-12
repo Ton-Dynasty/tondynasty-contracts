@@ -24,6 +24,24 @@ message(0xbac2f9a4) Compose {
     new_owner: Address;
 }
 
+message IssueQuota {
+    amount: Int as uint32;
+    price: Int as coins;
+}
+
+message BuyQuota {
+    amount: Int as uint32;
+}
+
+message IncreaseQuota {
+    amount: Int as uint32;
+}
+
+message WithdrawQuotaShop{
+    amount: Int as coins;
+    custom_payload: Cell;
+}
+
 contract NFTFractionWallet with JettonWallet {
     balance: Int as coins = ton("0");
     owner: Address;
@@ -110,6 +128,74 @@ contract NFTFraction with JettonMaster, Estimatable, Deployable {
     }
 }
 
+contract QuotaShop with Deployable, Estimatable {
+    quota_amount: Int as uint32 = 0;
+    quota_price: Int as coins = 0;
+    author: Address;
+    balance: Int as coins = 0;
+    nft_item: Address;
+    init (author: Address, nft_item: Address){
+        self.author = author;
+        self.nft_item = nft_item;
+    }
+
+    receive (msg: IssueQuota){
+        let ctx: Context = context();
+        require(ctx.sender == self.author, "QuotaShop: Only author can issue quota");
+        require(self.quota_amount == 0, "QuotaShop: Quota is already issued");
+        self.quota_amount = msg.amount;
+        self.quota_price = msg.price;
+    }
+
+    receive (msg: BuyQuota){
+        let ctx: Context = context();
+        require(self.quota_amount > 0, "QuotaShop: Quota is not issued");
+        require(self.quota_amount >= msg.amount, "QuotaShop: Quota is not enough");
+        require(ctx.value >= self.quota_price * msg.amount, "QuotaShop: Not enough money");
+        let remain: Int = self.estimate_rest_value(ctx) - ctx.readForwardFee();
+        send(SendParameters{
+            to: self.nft_item,
+            value: 0,
+            bounce: false,
+            mode: SendPayGasSeparately,
+            body: IncreaseQuota{
+                amount: msg.amount
+            }.toCell()
+        });
+
+        self.quota_amount = self.quota_amount - msg.amount;
+        self.balance = self.balance + self.quota_price * msg.amount;
+
+        send(SendParameters{
+            to: ctx.sender,
+            value: remain,
+            bounce: false,
+            mode: SendIgnoreErrors,
+            body: "Success".asComment()
+        });
+    }
+
+    receive ("Withdraw"){
+        let ctx: Context = context();
+        require(ctx.sender == self.author, "QuotaShop: Only author can withdraw");
+        send(SendParameters{
+            to: self.author,
+            value: self.balance,
+            bounce: true,
+            mode: SendRemainingValue,
+            body: WithdrawQuotaShop{
+                amount: self.balance,
+                custom_payload: emptyCell()
+            }.toCell()
+        });
+        self.balance = 0;
+    }
+
+    bounced (src: bounced<WithdrawQuotaShop>){
+        self.balance = self.balance + src.amount;
+    }
+}
+
 contract FNFTCollection with NFTCollectionStandard, NFTRoyaltyStandard, Estimatable, Deployable {
     next_item_index: Int as uint32 = 0; // if next_item_index is not -1, means sequential minting is enabled. We want a sequential minting in this example so we set it to uint32.
     collection_content: Cell;           // collection_content may be the prefix of individual_content
@@ -144,8 +230,6 @@ contract FNFTCollection with NFTCollectionStandard, NFTRoyaltyStandard, Estimata
             });
         self.next_item_index = self.next_item_index + 1;
     }
-
-
 
     inline fun get_fraction_param(index: Int): FractionParams {
         let content_cell: Cell? = null;
@@ -195,6 +279,8 @@ contract FNFTItem with NFTItemStandard, Lockable, Ownable {
     individual_content: Cell;
     is_initialized: Bool = false;
     is_locked: Bool = false;
+    quota_count: Int as uint32 = 0;
+    author: Address;
 
     fraction_params: FractionParams;
     
@@ -204,6 +290,7 @@ contract FNFTItem with NFTItemStandard, Lockable, Ownable {
         self.owner = owner;
         self.individual_content = individual_content;
         self.fraction_params = fraction_params;
+        self.author = newAddress(0, 0); // TODO: need to be changed
     }
 
     receive("Fractionalize:2") {
@@ -238,6 +325,16 @@ contract FNFTItem with NFTItemStandard, Lockable, Ownable {
             mode: SendRemainingValue + SendIgnoreErrors,
             body: "Success".asComment()
         });
+    }
+
+    receive(msg: IncreaseQuota) {
+        let ctx: Context = context();
+        require(ctx.sender == contractAddress(self.get_quotashop_init()), "FNFTItem: Only the QuotaShop contract can increase the quota");
+        self.quota_count = self.quota_count + msg.amount;
+    }
+
+    inline fun get_quotashop_init(): StateInit {
+        return initOf QuotaShop(self.author, myAddress());
     }
     
     inline fun get_jetton_master_init(): StateInit {
