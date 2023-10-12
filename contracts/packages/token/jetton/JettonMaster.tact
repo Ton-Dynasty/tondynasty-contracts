@@ -86,7 +86,7 @@ trait JettonMaster {
     }
 
     // @dev  _burn_notification_validate perform some custom validation after receiving JettonBurnNotification sent from Jetton wallet
-    inline fun _burn_notification_validate(ctx: Context, msg: JettonBurnNotification) {
+    virtual inline fun _burn_notification_validate(ctx: Context, msg: JettonBurnNotification) {
         let initCode: StateInit = self.calculate_jetton_wallet_init(msg.sender);
         require(ctx.sender == contractAddress(initCode), "Sender is not a Jetton wallet");
     } 

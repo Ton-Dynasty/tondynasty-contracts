@@ -68,7 +68,6 @@ message FractionTrade {
     bidder: Address;
 }
 
-
 contract NFTFractionWallet with JettonWallet {
     balance: Int as coins = ton("0");
     owner: Address;
@@ -93,24 +92,43 @@ contract NFTFractionWallet with JettonWallet {
         });
     }
 
+    // @dev  Withdraw all funds 
+    receive("Withdraw") {
+        let ctx: Context = context();
+        require(ctx.sender == self.jetton_master, "JettonWallet: Only JettonMaster can burn tokens");
+        if (self.balance > 0) {
+            self.balance = 0;
+            send(SendParameters{
+                to: self.jetton_master,
+                value: 0,
+                mode: SendRemainingBalance + SendDestroyIfZero,
+                bounce: true,
+                body: JettonBurnNotification{
+                    query_id: 0,
+                    amount: self.balance,
+                    sender: ctx.sender,
+                    response_destination: self.owner
+                }.toCell()
+            }); 
+        }
+    }
+
     override inline fun calculate_jetton_wallet_init(owner_addr: Address): StateInit {
         return initOf NFTFractionWallet(owner_addr, self.jetton_master);
     }
-
-    override inline fun _burn_validate(ctx: Context, msg: JettonBurn) {
-        require(ctx.sender == self.jetton_master, "JettonWallet: Only JettonMaster can burn tokens");
-        require(msg.response_destination == self.owner, "JettonWallet: Only owner can burn tokens");
-    }
+    override inline fun _burn_validate(ctx: Context, msg: JettonBurn) {}
+    override inline fun _burn_tokens(ctx: Context, msg: JettonBurn) {}
 }
 
-contract NFTFraction with JettonMaster, Estimatable, Deployable {
+contract NFTFraction with JettonMaster, Estimatable, Deployable, Lockable {
     mintable: Bool = true;          // This contract is always mintable
     total_supply: Int as coins = 0; // Total supply of the NFT item
     owner: Address;                 // NFT Item address
     jetton_content: Cell;
     reserve_price: Int as coins;    // Reserve price of the NFT item
-
     max_supply: Int as coins;       // Max supply of the NFT item
+    is_locked: Bool = false;        // Whether the jetton contract is locked (triggered by EndFractionAuction)
+    ton_balance: Int as coins = 0;  // Ton balance of the contract
 
     init(reserve_price: Int, max_supply: Int, owner: Address, jetton_content: Cell) {
         self.reserve_price = reserve_price;
@@ -143,33 +161,40 @@ contract NFTFraction with JettonMaster, Estimatable, Deployable {
         });
     }
 
+    receive("EndFractionAuction") {
+        let ctx: Context = context();
+        self.ensureUnlocked();
+        require(ctx.sender == self.owner, "NFTFraction: Only the NFT Item can send end fraction auction");
+        self.lock();
+        self.ton_balance = ctx.value;
+    }
+
     override inline fun calculate_jetton_wallet_init(owner_address: Address): StateInit {
         return initOf NFTFractionWallet(owner_address, myAddress());
     }
 
+    override inline fun _burn_notification_validate(ctx: Context, msg: JettonBurnNotification) {
+        self.ensureUnlocked();
+        require(msg.amount > 0, "NFTFraction: Amount is 0");
+        let initCode: StateInit = self.calculate_jetton_wallet_init(msg.sender);
+        require(ctx.sender == contractAddress(initCode), "Sender is not a Jetton wallet");
+    } 
+
+    // @dev  When receiving a burn notification, then transfer the rest value to the sender by the sender's share
     override inline fun _burn_notification(ctx: Context, msg: JettonBurnNotification) {
-        self.total_supply = self.total_supply - msg.amount;
-        let remain: Int = self.estimate_rest_value(ctx) - ctx.readForwardFee();
-        send(SendParameters{
-            to: self.owner,
-            value: remain,
-            bounce: false,
-            mode: SendPayGasSeparately,
-            body: Compose{
-                new_owner: msg.sender
-            }.toCell()
-        });
+        let ton_amount: Int = self.ton_balance * msg.amount / self.total_supply;
         if(msg.response_destination != newAddress(0, 0)){
             send(SendParameters{
                 to: msg.response_destination,
-                value: 0,
+                value: ton_amount,
                 bounce: false,
-                mode: SendRemainingValue + SendIgnoreErrors
+                mode: SendIgnoreErrors
             });
         }
     }
 
     override inline fun _mint_validate(ctx: Context, msg: JettonMint) {
+        self.ensureUnlocked();
         require(ctx.sender == self.owner, "JettonMaster: Sender is not a NFT Item contract");
         require(self.mintable, "JettonMaster: Jetton is not mintable");
         require(self.total_supply + msg.amount <= self.total_supply, "JettonMaster: Exceeds max supply");
@@ -394,28 +419,14 @@ contract FNFTItem with NFTItemStandard, Lockable, Ownable {
     quota: Int as uint32 = 0;
     fraction_params: FractionParams;
     
+    nonce: Int as uint32 = 0;
+    
     init(collection_address: Address, index: Int, owner: Address, individual_content: Cell, fraction_params: FractionParams) {
         self.collection_address = collection_address;
         self.index = index;
         self.owner = owner;
         self.individual_content = individual_content;
         self.fraction_params = fraction_params;
-    }
-
-    receive(msg: Compose) {
-        self.ensureLocked();
-        let ctx: Context = context();
-        let nftFractionInit: StateInit = self.get_jetton_master_init();
-        require(ctx.sender == contractAddress(nftFractionInit), "FNFTItem: Only the NFT Fraction contract can compose the NFT item");
-        self.owner = msg.new_owner;
-        self.unlock();
-        send(SendParameters{
-            to: msg.new_owner,
-            value: 0,
-            bounce: false,
-            mode: SendRemainingValue + SendIgnoreErrors,
-            body: "Success".asComment()
-        });
     }
 
     receive(msg: IncreaseQuota) {
