@@ -87,6 +87,7 @@ contract NFTFractionWallet with JettonWallet {
 
     receive("BuyAll") {
         let ctx: Context = context();
+        require(ctx.sender == self.owner, "JettonWallet: Only owner can Set up auction");
         send(SendParameters{
             to: self.jetton_master,
             value: 0,
@@ -184,14 +185,15 @@ contract NFTFraction with JettonMaster, Estimatable, Deployable, Lockable {
         require(ctx.sender == contractAddress(nftFractionWalletInit), "NFTFraction: Only the NFT Fraction wallet contract trigger buy all tokens");
         require(msg.reserve_price >= self.reserve_price, "NFTFraction: Reserve price is not enough");
         let remain: Int = self.estimate_rest_value(ctx);
-        require(remain > msg.reserve_price * self.max_supply, "NFTFraction: Not enough money");
+        let total_price: Int = msg.reserve_price * self.max_supply / 1000000000;
+        require(remain > total_price, "NFTFraction: Not enough money");
         send(SendParameters{
             to: self.owner,
             value: 0,
             bounce: false,
             mode: SendRemainingValue,
             body: FractionTrade {
-                buy_out: msg.reserve_price * self.max_supply,
+                buy_out: total_price,
                 bidder: msg.origin
             }.toCell()
         });
@@ -220,6 +222,10 @@ contract NFTFraction with JettonMaster, Estimatable, Deployable, Lockable {
         require(ctx.sender == self.owner, "NFTFraction: Only the NFT Item can send end fraction auction");
         self.lock();
         self.ton_balance = ctx.value;
+    }
+
+    receive() {
+
     }
 
     override inline fun calculate_jetton_wallet_init(owner_address: Address): StateInit {
@@ -664,7 +670,10 @@ contract FNFTItem with NFTItemStandard, Lockable, Ownable {
     }
 
     override inline fun _transfer_validate(ctx: Context, msg: Transfer, remain: Int) {
-        self.ensureUnlocked();
+        if(ctx.sender != self.get_nft_auction_address())
+        {
+            self.ensureUnlocked();
+        }
         require(ctx.sender == self.owner || ctx.sender == self.collection_address || ctx.sender == self.get_nft_auction_address(), "FNFTItem: Only the owner or collection can transfer the NFT item");
     }
 
@@ -719,6 +728,7 @@ contract FNFTItem with NFTItemStandard, Lockable, Ownable {
             remain = remain - ctx.readForwardFee(); 
             if (msg.response_destination != newAddress(0, 0) && remain > msg.forward_amount) { 
                 if (isAuctionAddress) { // TransferAuctionPayload
+                    self.unlock();
                     send(SendParameters{ 
                         to: msg.response_destination,
                         value: 0,
@@ -999,8 +1009,7 @@ contract NFTItemAuction {
             to: seller,
             value: winningBidAmount - ton("0.06"), 
             mode: SendPayGasSeparately, 
-            bounce: false,
-            body: "Pay winning bid amount".asComment()
+            bounce: false
         });
     }
 
