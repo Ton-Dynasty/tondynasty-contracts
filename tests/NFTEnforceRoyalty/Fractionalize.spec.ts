@@ -7,7 +7,7 @@ import {
     printTransactionFees,
 } from '@ton-community/sandbox';
 import { Address, Cell, beginCell, toNano } from 'ton-core';
-import { FNFTCollection, RoyaltyParams } from '../../wrappers/FNFTEnforce_FNFTCollection';
+import { BuyAll, FNFTCollection, RoyaltyParams } from '../../wrappers/FNFTEnforce_FNFTCollection';
 import { NFTFractionWallet } from '../../wrappers/FNFTEnforce_NFTFractionWallet';
 import { NFTFraction } from '../../wrappers/FNFTEnforce_NFTFraction';
 import { FNFTItem } from '../../wrappers/FNFTEnforce_FNFTItem';
@@ -521,16 +521,21 @@ describe('NFTExample', () => {
         const jackyJettonCount = await jackyJettonWallet.getDebugGetBalance();
         expect(jackyJettonCount).toEqual(toNano('99'));
 
-        // Send BuyAll msg to Jacky's wallet
+        const auctionInfo: BuyAll = {
+            $$type: 'BuyAll',
+            reserve_price: toNano('0.1'),
+        };
+        // Send BuyAll msg to Jacky's wallet to set up an auction
         const buyAllRusult = await jackyJettonWallet.send(
             jacky.getSender(),
             {
                 value: toNano('105'),
             },
-            'BuyAll'
+            auctionInfo
         );
         //printTransactionFees(buyAllRusult.transactions);
 
+        // Check Jacky's wallet send BuyAllToken to Jacky
         expect(buyAllRusult.transactions).toHaveTransaction({
             from: jacky.address,
             to: jackyJettonWallet.address,
@@ -538,12 +543,14 @@ describe('NFTExample', () => {
         });
 
         // Check Jacky's wallet send BuyAllToken Jetton Master
+        // It will check the reserve price is enough or not
         expect(buyAllRusult.transactions).toHaveTransaction({
             from: jackyJettonWallet.address,
             to: jettonMaster.address,
             success: true,
         });
 
+        // Check Jetton Master send FractionTrade to NFTItem
         expect(buyAllRusult.transactions).toHaveTransaction({
             from: jettonMaster.address,
             to: nftItem.address,
@@ -553,6 +560,7 @@ describe('NFTExample', () => {
         const auctionAdderess = await nftItem.getDebugNftAuctionAddress();
         const nftAuction = blockchain.openContract(NFTItemAuction.fromAddress(auctionAdderess));
 
+        // Check NftItem Deploy a NftAuction
         expect(buyAllRusult.transactions).toHaveTransaction({
             from: nftItem.address,
             to: auctionAdderess,
@@ -577,7 +585,7 @@ describe('NFTExample', () => {
             exitCode: 18526,
         });
 
-        // Second bid: Bid is too low -> exid code 1007
+        // buyer2 bid to NftAuction
         let buyer2 = await blockchain.treasury('buyer2');
         const bidmoney2 = toNano('50');
         const buyer2BuyResult = await nftAuction.send(
@@ -588,6 +596,8 @@ describe('NFTExample', () => {
             'Bid'
         );
         //printTransactionFees(buyer2BuyResult.transactions);
+
+        // Check buyer2 send Bid message to NftAuction
         expect(buyer2BuyResult.transactions).toHaveTransaction({
             from: buyer2.address,
             to: auctionAdderess,
@@ -599,6 +609,7 @@ describe('NFTExample', () => {
         const secondBidAuctionEnd = await nftAuction.getGetAuctionEnd();
         expect(secondBidAuctionEnd).not.toEqual(0n);
 
+        // After auction ended, buyer2 to send settleAuction to NftAuction
         const settleAuctionResult = await nftAuction.send(
             buyer2.getSender(),
             {
@@ -613,6 +624,7 @@ describe('NFTExample', () => {
             exitCode: 45065, // Auction not yet ended.
         });
 
+        // Auction Ended
         blockchain.now = Math.floor(Date.now() / 1000) + 2 * 24 * 60 * 60;
         const settleAuctionResult2 = await nftAuction.send(
             buyer2.getSender(),
@@ -622,6 +634,7 @@ describe('NFTExample', () => {
             'settleAuction'
         );
         //printTransactionFees(settleAuctionResult2.transactions);
+
         // Check buyer2 send settleAuction message to NftAuction
         expect(settleAuctionResult2.transactions).toHaveTransaction({
             from: buyer2.address,
@@ -629,28 +642,32 @@ describe('NFTExample', () => {
             success: true,
         });
 
-        // Check NftAuction contract send winning bid money to Seller (Jetton Master)
+        // Check NftAuction contract send winning bid money to NFT Item
         expect(settleAuctionResult2.transactions).toHaveTransaction({
             from: nftAuction.address,
             to: nftItem.address,
             success: true,
         });
 
-        // Check NftAuction contract send winning bid money to Seller (Jetton Master)
+        // Check NFT Item contract send winning bid money to Seller (Jetton Master)
         expect(settleAuctionResult2.transactions).toHaveTransaction({
             from: nftItem.address,
             to: jettonMaster.address,
             success: true,
         });
 
+        // Check auction contract send Transfer msg to NFT Item
         expect(settleAuctionResult2.transactions).toHaveTransaction({
             from: nftAuction.address,
             to: nftItem.address,
             success: true,
         });
+
+        // Check new owner of NFT Item is buyer2
         const newOwner: Address = await nftItem.getDebugGetOwner();
         expect(newOwner.toString()).toEqual(buyer2.address.toString());
 
+        // Jacky want to withdraw his fraction to Ton
         const withdrawResult = await jackyJettonWallet.send(
             jacky.getSender(),
             {
@@ -659,11 +676,15 @@ describe('NFTExample', () => {
             'Withdraw'
         );
         //printTransactionFees(withdrawResult.transactions);
+
+        // Check Jacky wallet send Burn msg to Jetton Master
         expect(withdrawResult.transactions).toHaveTransaction({
             from: jackyJettonWallet.address,
             to: jettonMaster.address,
             success: true,
         });
+
+        // Check jetton master send the Jacky's ratio of total bid money to Jacky
         expect(withdrawResult.transactions).toHaveTransaction({
             from: jettonMaster.address,
             to: jacky.address,
@@ -674,6 +695,8 @@ describe('NFTExample', () => {
             NFTFractionWallet.fromAddress(await jettonMaster.getGetWalletAddress(author.address))
         );
         const author_before_balance = await author.getBalance();
+
+        // Author can use his fraction to exchange for Ton (It's one way of earning royalty)
         const authorWithdrawResult = await authorJettonWallet.send(
             author.getSender(),
             {
@@ -682,19 +705,22 @@ describe('NFTExample', () => {
             'Withdraw'
         );
         const author_after_balance = await author.getBalance();
-        printTransactionFees(authorWithdrawResult.transactions);
+
+        // Check author wallet send Burn msg to Jetton Master
         expect(authorWithdrawResult.transactions).toHaveTransaction({
             from: authorJettonWallet.address,
             to: jettonMaster.address,
             success: true,
         });
+
+        // Check jetton master send the author's ratio of total bid money to author
         expect(authorWithdrawResult.transactions).toHaveTransaction({
             from: jettonMaster.address,
             to: author.address,
             success: true,
         });
 
-        // author earn his nft royalty
+        // Author earn his nft royalty
         expect(author_after_balance).toBeGreaterThan(author_before_balance);
     });
 });

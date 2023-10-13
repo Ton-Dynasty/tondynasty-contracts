@@ -75,6 +75,10 @@ message BuildQuotaShop {
     sender: Address;
 }
 
+message BuyAll {
+    reserve_price: Int as coins;
+}
+
 contract NFTFractionWallet with JettonWallet {
     balance: Int as coins = ton("0");
     owner: Address;
@@ -85,7 +89,7 @@ contract NFTFractionWallet with JettonWallet {
         self.jetton_master = jetton_master;
     }
 
-    receive("BuyAll") {
+    receive(msg: BuyAll) {
         let ctx: Context = context();
         require(ctx.sender == self.owner, "JettonWallet: Only owner can Set up auction");
         send(SendParameters{
@@ -95,7 +99,7 @@ contract NFTFractionWallet with JettonWallet {
             mode: SendRemainingValue + SendIgnoreErrors,
             body: BuyAllToken{ 
                 origin: ctx.sender,
-                reserve_price: ton("0.1")
+                reserve_price: msg.reserve_price //ton("0.1")
             }.toCell()
         });
     }
