@@ -998,14 +998,16 @@ contract NFTItemAuction {
         // Send back previous highest bid to previous highest bidder.
         let prevNftHighestBidder: Address = self.auctionInfo.nftHighestBidder;
         let prevNftHighestBid: Int = self.auctionInfo.nftHighestBid;
-        let paybackTon: Int = max(prevNftHighestBid - self.minTonsForStorage - self.gasConsumption,0);
-        send(SendParameters{
-            to: prevNftHighestBidder,
-            value: paybackTon, 
-            mode: SendPayGasSeparately, 
-            bounce: false,
-            body: "Pay bid money back to the prevNftHighestBidder".asComment()
-        });
+        let paybackTon: Int = prevNftHighestBid - self.minTonsForStorage;
+        if (paybackTon > 0) {
+            send(SendParameters{
+                to: prevNftHighestBidder,
+                value: paybackTon, 
+                mode: SendIgnoreErrors, 
+                bounce: false,
+                body: "Pay bid money back to the prevNftHighestBidder".asComment()
+            });
+        }
     }
 
     // @dev Update auction bid period and auction end time.

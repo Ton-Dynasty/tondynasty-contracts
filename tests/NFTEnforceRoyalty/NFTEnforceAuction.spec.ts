@@ -230,7 +230,6 @@ describe('NFTAuctionExample', () => {
             from: nftAuctionAddress,
             to: buyer1.address,
             success: true,
-            value: bidmoney1 - minTonsForStorage - gasConsumption, // bid 5 ton, 0.06 ton is the fee => receive 4.94 ton back
         });
         const settleAuctionResult = await nftAuction.send(
             buyer3.getSender(),
