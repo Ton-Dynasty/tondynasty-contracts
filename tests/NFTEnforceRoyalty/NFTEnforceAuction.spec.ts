@@ -160,7 +160,7 @@ describe('NFTAuctionExample', () => {
             success: true,
         });
         // Check that nft item send Trade message to NftAuction
-        let nftAuctionAddress = await nftItem.getDebugNftAuctionAddress(alice.address);
+        let nftAuctionAddress = await nftItem.getDebugNftAuctionAddress();
         nftAuction = blockchain.openContract(await NFTItemAuction.fromAddress(nftAuctionAddress));
         expect(tradeResult.transactions).toHaveTransaction({
             from: nftId0Address,

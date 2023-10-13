@@ -565,9 +565,9 @@ contract FNFTItem with NFTItemStandard, Lockable, Ownable {
         self.requireOwner();
         self.ensureUnlocked();
         self._buyNowPrice_validate(msg.buynow_price);
-        let nftAuctionAddress: Address = self.get_nft_auction_address(self.owner);
+        let nftAuctionAddress: Address = self.get_nft_auction_address();
         let auctionInfo: AuctionInfo = self._fill_up_auction_info(self.owner, msg.reserve_price, msg.buynow_price, msg.auction_period, msg.beneficiary);
-        let nftAuctionInit: StateInit = self.get_nft_auction_init(self.owner);
+        let nftAuctionInit: StateInit = self.get_nft_auction_init();
         self._build_auction(nftAuctionAddress, auctionInfo, nftAuctionInit);
     }
 
@@ -577,9 +577,9 @@ contract FNFTItem with NFTItemStandard, Lockable, Ownable {
         require(contractAddress(jettonMasterInit) == ctx.sender, "FNFTItem: Only the Jetton Master contract can trade the NFT item fraction");
         self.ensureLocked();
         let beneficiary: Address = ctx.sender; // Jetton Master
-        let nftAuctionAddress: Address = self.get_nft_auction_address(msg.bidder);
+        let nftAuctionAddress: Address = self.get_nft_auction_address();
         let auctionInfo: AuctionInfo = self._fill_up_auction_info(msg.bidder, msg.buy_out, 0, self.auction_period, beneficiary);
-        let nftAuctionInit: StateInit = self.get_nft_auction_init(msg.bidder);
+        let nftAuctionInit: StateInit = self.get_nft_auction_init();
         self._build_auction(nftAuctionAddress, auctionInfo, nftAuctionInit);
     }
 
@@ -628,13 +628,12 @@ contract FNFTItem with NFTItemStandard, Lockable, Ownable {
         return initOf NFTFraction(DEFAULT_RESERVE_PRICE, self.fraction_params.max_supply, myAddress(), self.fraction_params.jetton_content, self.nullifier);
     }
 
-    inline fun get_nft_auction_init(seller: Address): StateInit {
-        return initOf NFTItemAuction(myAddress(), seller);
+    inline fun get_nft_auction_init(): StateInit {
+        return initOf NFTItemAuction(myAddress(), self.owner);
     }
 
-    inline fun get_nft_auction_address(seller: Address): Address {
-        let nftAuctionInit: StateInit = self.get_nft_auction_init(seller);
-        return contractAddress(nftAuctionInit);
+    inline fun get_nft_auction_address(): Address {
+        return contractAddress(self.get_nft_auction_init());
     }
 
     inline fun fractionalize_validate(ctx: Context, msg: Transfer) {
@@ -666,23 +665,7 @@ contract FNFTItem with NFTItemStandard, Lockable, Ownable {
 
     override inline fun _transfer_validate(ctx: Context, msg: Transfer, remain: Int) {
         self.ensureUnlocked();
-        let isSentByAuction: Bool = self._is_send_by_auction(ctx, msg); //false;
-        
-        // if(msg.custom_payload != emptyCell()) {
-        //     let payload: Cell = msg.custom_payload!!;
-        //     let ps: Slice = payload.asSlice();
-        //     //ps.loadBits(160);
-        //     let op: Int = ps.loadUint(32);
-        //     let buyer: Address = newAddress(0, 0);
-        //     if (op == 0x4056ceb8) { // TransferAuctionPayload #4056ceb8
-        //         buyer = ps.loadAddress();
-        //     }
-        //     let auctionAddress: Address = self.get_nft_auction_address(buyer);
-        //     isSentByAuction = ctx.sender == auctionAddress;
-            
-        // }
-        
-        require(ctx.sender == self.owner || ctx.sender == self.collection_address || isSentByAuction, "FNFTItem: Only the owner or collection can transfer the NFT item");
+        require(ctx.sender == self.owner || ctx.sender == self.collection_address || ctx.sender == self.get_nft_auction_address(), "FNFTItem: Only the owner or collection can transfer the NFT item");
     }
 
     override inline fun mint(ctx: Context, msg: Transfer) {
@@ -695,25 +678,6 @@ contract FNFTItem with NFTItemStandard, Lockable, Ownable {
             mode:  SendIgnoreErrors + SendRemainingValue,
             body: Excesses { query_id: msg.query_id }.toCell()
         });
-    }
-
-    inline fun _is_send_by_auction(ctx: Context, msg: Transfer): Bool {
-        let isSentByAuction: Bool = false;
-                
-        if(msg.custom_payload != emptyCell()) {
-            let payload: Cell = msg.custom_payload!!;
-            let ps: Slice = payload.asSlice();
-            //ps.loadBits(160);
-            let op: Int = ps.loadUint(32);
-            let buyer: Address = newAddress(0, 0);
-            if (op == 0x4056ceb8) { // TransferAuctionPayload #4056ceb8
-                buyer = ps.loadAddress();
-            }
-            let auctionAddress: Address = self.get_nft_auction_address(buyer);
-            isSentByAuction = ctx.sender == auctionAddress;
-            
-        }
-        return isSentByAuction;
     }
 
     // @dev  transfer transfer nft with royalty enforcement
@@ -732,22 +696,8 @@ contract FNFTItem with NFTItemStandard, Lockable, Ownable {
     //              a. a part of nft fraction (jetton) will be minted to the receiver
     //              b. the remain part of nft fraction (jetton) will be minted to the author
     override inline fun transfer(ctx: Context, msg: Transfer, remain: Int) {
-        //let op: Int = self.loadOp(msg.custom_payload);
-        let isSentByAuction: Bool = false;
-        let op: Int = 0;
-        if(msg.custom_payload != null) {
-            let payload: Cell = msg.custom_payload!!;
-            let ps: Slice = payload.asSlice();
-            //ps.skipBits(32);
-            op = ps.loadUint(32);
-            let buyer: Address = newAddress(0, 0);
-            if (op == 0x4056ceb8) { // TransferAuctionPayload #4056ceb8
-                buyer = ps.loadAddress();
-            }
-            let auctionAddress: Address = self.get_nft_auction_address(buyer);
-            isSentByAuction = ctx.sender == auctionAddress;
-        }
-        let isWhitelisted: Bool = ctx.sender == self.fraction_params.author || ctx.sender == self.collection_address  || isSentByAuction;
+        let isAuctionAddress: Bool = ctx.sender == self.get_nft_auction_address();
+        let isWhitelisted: Bool = ctx.sender == self.fraction_params.author || ctx.sender == self.collection_address  || isAuctionAddress;
         if (isWhitelisted || self.quota > 0) {
             if (self.quota > 0 && !isWhitelisted) {
                 self.quota = self.quota - 1;
@@ -768,7 +718,7 @@ contract FNFTItem with NFTItemStandard, Lockable, Ownable {
             }
             remain = remain - ctx.readForwardFee(); 
             if (msg.response_destination != newAddress(0, 0) && remain > msg.forward_amount) { 
-                if (op == 0x4056ceb8) { // TransferAuctionPayload
+                if (isAuctionAddress) { // TransferAuctionPayload
                     send(SendParameters{ 
                         to: msg.response_destination,
                         value: 0,
@@ -792,8 +742,8 @@ contract FNFTItem with NFTItemStandard, Lockable, Ownable {
         }
     }
 
-    get fun debug_nft_auction_address(seller: Address): Address {
-        return self.get_nft_auction_address(seller);
+    get fun debug_nft_auction_address(): Address {
+        return self.get_nft_auction_address();
     }
 
     get fun debug_get_quota(): Int {
@@ -1025,22 +975,16 @@ contract NFTItemAuction {
     // @dev Transfer the NFT to the highest bidder
     // @note If you want change msg value, you should make sure that is enough for NFT Auction market contract to transfer NFT.
     inline fun _transfer_nft(buyer: Address) {
-        // let transferAuctionPayload: TransferAuctionPayload = TransferAuctionPayload {
-        //     tmp: 1;
-        //     seller: self.auctionInfo.nftSeller
-        // };
         send(SendParameters{
             to: self.nft_item, 
             value: 0, 
-            bounce: true,
-            mode: SendRemainingValue,
+            bounce: false,
+            mode: SendRemainingBalance + SendDestroyIfZero,
             body: Transfer {
                 query_id: 0,
                 new_owner: buyer,
                 response_destination: buyer,
-                custom_payload: TransferAuctionPayload {
-                    seller: self.auctionInfo.nftSeller
-                }.toCell(),
+                custom_payload: emptyCell(),
                 forward_amount: 0,
                 forward_payload: emptySlice()
             }.toCell()
