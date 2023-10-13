@@ -621,7 +621,7 @@ describe('NFTExample', () => {
             },
             'settleAuction'
         );
-        printTransactionFees(settleAuctionResult2.transactions);
+        //printTransactionFees(settleAuctionResult2.transactions);
         // Check buyer2 send settleAuction message to NftAuction
         expect(settleAuctionResult2.transactions).toHaveTransaction({
             from: buyer2.address,
@@ -632,6 +632,13 @@ describe('NFTExample', () => {
         // Check NftAuction contract send winning bid money to Seller (Jetton Master)
         expect(settleAuctionResult2.transactions).toHaveTransaction({
             from: nftAuction.address,
+            to: nftItem.address,
+            success: true,
+        });
+
+        // Check NftAuction contract send winning bid money to Seller (Jetton Master)
+        expect(settleAuctionResult2.transactions).toHaveTransaction({
+            from: nftItem.address,
             to: jettonMaster.address,
             success: true,
         });
@@ -643,5 +650,24 @@ describe('NFTExample', () => {
         });
         const newOwner: Address = await nftItem.getDebugGetOwner();
         expect(newOwner.toString()).toEqual(buyer2.address.toString());
+
+        const withdrawResult = await jackyJettonWallet.send(
+            jacky.getSender(),
+            {
+                value: toNano('1'),
+            },
+            'Withdraw'
+        );
+        //printTransactionFees(withdrawResult.transactions);
+        expect(withdrawResult.transactions).toHaveTransaction({
+            from: jackyJettonWallet.address,
+            to: jettonMaster.address,
+            success: true,
+        });
+        expect(withdrawResult.transactions).toHaveTransaction({
+            from: jettonMaster.address,
+            to: jacky.address,
+            success: true,
+        });
     });
 });

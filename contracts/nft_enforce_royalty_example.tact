@@ -103,17 +103,19 @@ contract NFTFractionWallet with JettonWallet {
     // @dev  Withdraw all funds from NFTFraction (jettonMaster) and destroy the wallet
     receive("Withdraw") {
         let ctx: Context = context();
-        require(ctx.sender == self.jetton_master, "JettonWallet: Only JettonMaster can burn tokens");
-        if (self.balance > 0) {
+        let old_balance: Int = self.balance;
+        require(ctx.sender == self.owner, "JettonWallet: Only Owner can burn tokens");
+        require(ctx.value > ctx.readForwardFee(), "JettonWallet: Not enough money to withdraw");
+        if (old_balance > 0) {
             self.balance = 0;
             send(SendParameters{
                 to: self.jetton_master,
                 value: 0,
-                mode: SendRemainingBalance + SendDestroyIfZero,
-                bounce: true,
+                mode: SendRemainingValue + SendIgnoreErrors,
+                bounce: false,
                 body: JettonBurnNotification{
                     query_id: 0,
-                    amount: self.balance,
+                    amount: old_balance,
                     sender: ctx.sender,
                     response_destination: self.owner
                 }.toCell()
@@ -139,15 +141,9 @@ contract NFTFractionWallet with JettonWallet {
         });
     }
 
-    // TODO: Add bounced Redeem message receiver
-
     override inline fun calculate_jetton_wallet_init(owner_addr: Address): StateInit {
         return initOf NFTFractionWallet(owner_addr, self.jetton_master);
     }
-
-    override inline fun _burn_validate(ctx: Context, msg: JettonBurn) {}
-
-    override inline fun _burn_tokens(ctx: Context, msg: JettonBurn) {}
 
     get fun debug_get_balance(): Int {
         return self.balance;
@@ -224,16 +220,12 @@ contract NFTFraction with JettonMaster, Estimatable, Deployable, Lockable {
         self.ton_balance = ctx.value;
     }
 
-    receive() {
-
-    }
-
     override inline fun calculate_jetton_wallet_init(owner_address: Address): StateInit {
         return initOf NFTFractionWallet(owner_address, myAddress());
     }
 
     override inline fun _burn_notification_validate(ctx: Context, msg: JettonBurnNotification) {
-        self.ensureUnlocked();
+        self.ensureLocked();
         require(msg.amount > 0, "NFTFraction: Amount is 0");
         let initCode: StateInit = self.calculate_jetton_wallet_init(msg.sender);
         require(ctx.sender == contractAddress(initCode), "Sender is not a Jetton wallet");
@@ -582,11 +574,25 @@ contract FNFTItem with NFTItemStandard, Lockable, Ownable {
         let jettonMasterInit: StateInit = self.get_jetton_master_init();
         require(contractAddress(jettonMasterInit) == ctx.sender, "FNFTItem: Only the Jetton Master contract can trade the NFT item fraction");
         self.ensureLocked();
-        let beneficiary: Address = ctx.sender; // Jetton Master
+        let beneficiary: Address = myAddress(); // Jetton Master
         let nftAuctionAddress: Address = self.get_nft_auction_address();
         let auctionInfo: AuctionInfo = self._fill_up_auction_info(msg.bidder, msg.buy_out, 0, self.auction_period, beneficiary);
         let nftAuctionInit: StateInit = self.get_nft_auction_init();
         self._build_auction(nftAuctionAddress, auctionInfo, nftAuctionInit);
+    }
+
+    receive("EndFractionAuction") {
+        let cxt: Context = context();
+        let jettonMasterInit: StateInit = self.get_jetton_master_init();
+        require(cxt.sender == self.get_nft_auction_address(), "FNFTItem: Only the NFT Auction contract can end the fraction auction");
+        send(SendParameters{
+            to: contractAddress(jettonMasterInit),
+            value: 0,
+            bounce: false,
+            mode: SendRemainingValue + SendIgnoreErrors,
+            body: "EndFractionAuction".asComment()
+        });
+
     }
 
     inline fun _fill_up_auction_info(sellerAddress: Address, reservePrice: Int, buyNowPrice: Int, auctionPeriod: Int, beneficiary: Address?): AuctionInfo {
@@ -1009,6 +1015,7 @@ contract NFTItemAuction {
             to: seller,
             value: winningBidAmount - ton("0.06"), 
             mode: SendPayGasSeparately, 
+            body: "EndFractionAuction".asComment(),
             bounce: false
         });
     }
