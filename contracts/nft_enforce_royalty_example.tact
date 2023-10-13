@@ -679,7 +679,6 @@ contract FNFTItem with NFTItemStandard, Lockable, Ownable {
             body: Excesses { query_id: msg.query_id }.toCell()
         });
     }
-
     // @dev  transfer transfer nft with royalty enforcement
     // @note - If whitelisted or self.quota > 0 do not enforce royalty:
     //          WhiteListed:
@@ -716,13 +715,19 @@ contract FNFTItem with NFTItemStandard, Lockable, Ownable {
                     }.toCell()
                 });
             }
-            remain = remain - ctx.readForwardFee(); 
+            remain = remain - ctx.readForwardFee();
             if (msg.response_destination != newAddress(0, 0) && remain > msg.forward_amount) { 
                 if (isAuctionAddress) { // TransferAuctionPayload
+                    let royalty_reward: Int = remain * self.royalty_params.numerator / self.royalty_params.denominator;
+                    send(SendParameters{ 
+                        to: self.royalty_params.destination,
+                        value: royalty_reward,
+                        mode: SendIgnoreErrors
+                    });
                     send(SendParameters{ 
                         to: msg.response_destination,
-                        value: 0,
-                        mode: SendRemainingValue + SendIgnoreErrors,
+                        value: remain - royalty_reward - ctx.readForwardFee(),
+                        mode: SendIgnoreErrors,
                         body: "EndFractionAuction".asComment()
                     });
                 }
@@ -730,11 +735,10 @@ contract FNFTItem with NFTItemStandard, Lockable, Ownable {
                     send(SendParameters{ 
                         to: msg.response_destination,
                         value: 0,
-                        mode: SendRemainingValue + SendIgnoreErrors,
+                        mode: SendRemainingBalance,
                         body: Excesses { query_id: msg.query_id }.toCell()
                     });
                 }
-                
             }
         } else {
             self.fractionalize_validate(ctx, msg);
@@ -759,6 +763,10 @@ contract FNFTItem with NFTItemStandard, Lockable, Ownable {
     }
     get fun debug_get_nullifier(): Int {
         return self.nullifier;
+    }
+
+    get fun debug_get_royalty_destination(): Address {
+        return self.royalty_params.destination;
     }
 }
 
