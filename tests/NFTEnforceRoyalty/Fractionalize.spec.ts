@@ -579,7 +579,7 @@ describe('NFTExample', () => {
 
         // Second bid: Bid is too low -> exid code 1007
         let buyer2 = await blockchain.treasury('buyer2');
-        const bidmoney2 = toNano('20');
+        const bidmoney2 = toNano('50');
         const buyer2BuyResult = await nftAuction.send(
             buyer2.getSender(),
             {
@@ -669,5 +669,32 @@ describe('NFTExample', () => {
             to: jacky.address,
             success: true,
         });
+
+        const authorJettonWallet = blockchain.openContract(
+            NFTFractionWallet.fromAddress(await jettonMaster.getGetWalletAddress(author.address))
+        );
+        const author_before_balance = await author.getBalance();
+        const authorWithdrawResult = await authorJettonWallet.send(
+            author.getSender(),
+            {
+                value: toNano('1'),
+            },
+            'Withdraw'
+        );
+        const author_after_balance = await author.getBalance();
+        printTransactionFees(authorWithdrawResult.transactions);
+        expect(authorWithdrawResult.transactions).toHaveTransaction({
+            from: authorJettonWallet.address,
+            to: jettonMaster.address,
+            success: true,
+        });
+        expect(authorWithdrawResult.transactions).toHaveTransaction({
+            from: jettonMaster.address,
+            to: author.address,
+            success: true,
+        });
+
+        // author earn his nft royalty
+        expect(author_after_balance).toBeGreaterThan(author_before_balance);
     });
 });

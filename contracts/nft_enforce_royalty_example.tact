@@ -239,7 +239,7 @@ contract NFTFraction with JettonMaster, Estimatable, Deployable, Lockable {
                 to: msg.response_destination,
                 value: ton_amount,
                 bounce: false,
-                mode: SendIgnoreErrors
+                mode: SendRemainingValue
             });
         }
     }
