@@ -316,7 +316,7 @@ describe('NFTExample', () => {
         );
 
         // Alan transfer NFT#1 to Jacky
-        const fractionTx = await nftItem.send(
+        await nftItem.send(
             alan.getSender(),
             {
                 value: toNano('1'),
@@ -367,5 +367,112 @@ describe('NFTExample', () => {
         );
         const alanJettonCount = await alanJettonWallet.getDebugGetBalance();
         expect(alanJettonCount).toBeGreaterThan(toNano('90'));
+    });
+
+    it("Should author receive 100% nft fraction and compose it back to NFT#1, update NFT#1's nonce", async () => {
+        const beforeItemIndex = (await nftCollection.getGetCollectionData()).next_item_index;
+
+        // Alan mint NFT#1
+        await nftCollection.send(
+            alan.getSender(),
+            {
+                value: toNano('1'),
+            },
+            'Mint'
+        );
+
+        nftItem = blockchain.openContract(
+            FNFTItem.fromAddress(await nftCollection.getGetNftAddressByIndex(beforeItemIndex))
+        );
+
+        // Alan transfer NFT#1 to jacky
+        await nftItem.send(
+            alan.getSender(),
+            {
+                value: toNano('1'),
+            },
+            {
+                $$type: 'Transfer',
+                query_id: 0n,
+                new_owner: jacky.address,
+                response_destination: alan.address,
+                custom_payload: beginCell().endCell(),
+                forward_amount: 0n,
+                forward_payload: beginCell().endCell(),
+            }
+        );
+
+        // jacky transfer NFT fraction to author
+        const jettonMaster = blockchain.openContract(
+            NFTFraction.fromAddress(await nftItem.getDebugGetJettonMasterAddress())
+        );
+        const jackyJettonWallet = blockchain.openContract(
+            NFTFractionWallet.fromAddress(await jettonMaster.getGetWalletAddress(jacky.address))
+        );
+        await jackyJettonWallet.send(
+            jacky.getSender(),
+            {
+                value: toNano('1'),
+            },
+            {
+                $$type: 'JettonTransfer',
+                query_id: 0n,
+                amount: toNano('99'),
+                destination: author.address,
+                response_destination: jacky.address,
+                custom_payload: null,
+                forward_ton_amount: toNano('0'),
+                forward_payload: beginCell().endCell(),
+            }
+        );
+
+        // Check author receive 100% fraction (jetton)
+        const authorJettonWallet = blockchain.openContract(
+            NFTFractionWallet.fromAddress(await jettonMaster.getGetWalletAddress(author.address))
+        );
+        const authorJettonCount = await authorJettonWallet.getDebugGetBalance();
+        expect(authorJettonCount).toEqual(toNano('100'));
+
+        // Check author compose fraction back to NFT#1
+        const oldNullifier = await nftItem.getDebugGetNullifier();
+        const composeTx = await authorJettonWallet.send(
+            author.getSender(),
+            {
+                value: toNano('1'),
+            },
+            'Redeem'
+        );
+
+        expect(composeTx.transactions).toHaveTransaction({
+            from: authorJettonWallet.address,
+            to: jettonMaster.address,
+            deploy: false,
+            success: true,
+        });
+
+        expect(composeTx.transactions).toHaveTransaction({
+            from: jettonMaster.address,
+            to: nftItem.address,
+            deploy: false,
+            success: true,
+        });
+
+        expect(composeTx.transactions).toHaveTransaction({
+            from: nftItem.address,
+            to: author.address,
+            deploy: false,
+            success: true,
+        });
+
+        // Check author get NFT item back
+        const authorNFTItem = blockchain.openContract(
+            FNFTItem.fromAddress(await nftCollection.getGetNftAddressByIndex(beforeItemIndex))
+        );
+        const authorNFTItemOwner = await authorNFTItem.getOwner();
+        expect(authorNFTItemOwner.toString()).toEqual(author.address.toString());
+
+        // Check NFT#1 nullifier increased by 1
+        const newNullifier = await nftItem.getDebugGetNullifier();
+        expect(newNullifier).toEqual(oldNullifier + 1n);
     });
 });

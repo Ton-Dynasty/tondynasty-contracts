@@ -22,8 +22,9 @@ message FractionParams {
     jetton_content: Cell;
 }
 
-message(0xbaa13f5f) TryRedeem {
-    sender: Address; // Request sender who sent "Redeem" message to NFT Item
+message(0xbaa13f5f) Redeem {
+    sender: Address;
+    amount: Int as coins;
 }
 
 message(0xbac2f9a4) Compose {
@@ -98,7 +99,7 @@ contract NFTFractionWallet with JettonWallet {
         });
     }
 
-    // @dev  Withdraw all funds 
+    // @dev  Withdraw all funds from NFTFraction (jettonMaster) and destroy the wallet
     receive("Withdraw") {
         let ctx: Context = context();
         require(ctx.sender == self.jetton_master, "JettonWallet: Only JettonMaster can burn tokens");
@@ -119,10 +120,32 @@ contract NFTFractionWallet with JettonWallet {
         }
     }
 
+    // @dev  Redeem NFT Item by burning all tokens (Bounceable)
+    receive("Redeem") {
+        let ctx: Context = context();
+        require(ctx.sender == self.owner, "JettonWallet: Only owner can redeem NFT Item");
+        let old_balance: Int = self.balance;
+        self.balance = 0;
+        send(SendParameters{ 
+            to: self.jetton_master,
+            value: 0,
+            bounce: true,
+            mode: SendRemainingValue + SendIgnoreErrors,
+            body: Redeem { 
+                sender: ctx.sender,
+                amount: old_balance
+            }.toCell()
+        });
+    }
+
+    // TODO: Add bounced Redeem message receiver
+
     override inline fun calculate_jetton_wallet_init(owner_addr: Address): StateInit {
         return initOf NFTFractionWallet(owner_addr, self.jetton_master);
     }
+
     override inline fun _burn_validate(ctx: Context, msg: JettonBurn) {}
+
     override inline fun _burn_tokens(ctx: Context, msg: JettonBurn) {}
 
     get fun debug_get_balance(): Int {
@@ -140,11 +163,14 @@ contract NFTFraction with JettonMaster, Estimatable, Deployable, Lockable {
     is_locked: Bool = false;        // Whether the jetton contract is locked (triggered by EndFractionAuction)
     ton_balance: Int as coins = 0;  // Ton balance of the contract
 
-    init(reserve_price: Int, max_supply: Int, owner: Address, jetton_content: Cell) {
+    nullifier: Int as uint32;       // A nullifier to increase in NFTItem when the token is de-fractionalized
+
+    init(reserve_price: Int, max_supply: Int, owner: Address, jetton_content: Cell, nullifier: Int) {
         self.reserve_price = reserve_price;
         self.max_supply = max_supply;
         self.owner = owner;
         self.jetton_content = jetton_content;
+        self.nullifier = nullifier;
     }
 
     // @dev  When mint is bounced, the total supply should be decreased
@@ -167,6 +193,23 @@ contract NFTFraction with JettonMaster, Estimatable, Deployable, Lockable {
             body: FractionTrade {
                 buy_out: msg.reserve_price * self.max_supply,
                 bidder: msg.origin
+            }.toCell()
+        });
+    }
+
+    receive(msg: Redeem) {
+        self.ensureUnlocked();
+        let ctx: Context = context();
+        let nftFractionWalletInit: StateInit = self.calculate_jetton_wallet_init(msg.sender);
+        require(ctx.sender == contractAddress(nftFractionWalletInit), "NFTFraction: Only the NFT Fraction wallet contract trigger redeem");
+        require(msg.amount == self.total_supply, "NFTFraction: Amount is not equal to total supply");
+        send(SendParameters{
+            to: self.owner,
+            value: 0,
+            bounce: false,
+            mode: SendRemainingBalance + SendDestroyIfZero,
+            body: Compose {
+                new_owner: msg.sender
             }.toCell()
         });
     }
@@ -477,7 +520,7 @@ contract FNFTItem with NFTItemStandard, Lockable, Ownable {
     fraction_params: FractionParams;
     royalty_params: RoyaltyParams;
     
-    nonce: Int as uint32 = 0;
+    nullifier: Int as uint32 = 0;
     
     init(collection_address: Address, index: Int, owner: Address, individual_content: Cell, royalty_params: RoyaltyParams, fraction_params: FractionParams) {
         self.collection_address = collection_address;
@@ -497,6 +540,23 @@ contract FNFTItem with NFTItemStandard, Lockable, Ownable {
             value: 0,
             bounce: false,
             mode: SendRemainingValue + SendIgnoreErrors
+        });
+    }
+
+    receive(msg: Compose) {
+        self.ensureLocked();
+        let ctx: Context = context();
+        let nftFractionInit: StateInit = self.get_jetton_master_init();
+        require(ctx.sender == contractAddress(nftFractionInit), "FNFTItem: Only the NFT Fraction contract can compose the NFT item");
+        self.owner = msg.new_owner;
+        self.nullifier = self.nullifier + 1;
+        self.unlock();
+        send(SendParameters{
+            to: msg.new_owner,
+            value: 0,
+            bounce: false,
+            mode: SendRemainingValue + SendIgnoreErrors,
+            body: "Success".asComment()
         });
     }
 
@@ -522,7 +582,6 @@ contract FNFTItem with NFTItemStandard, Lockable, Ownable {
         let nftAuctionInit: StateInit = self.get_nft_auction_init(msg.bidder);
         self._build_auction(nftAuctionAddress, auctionInfo, nftAuctionInit);
     }
-    
 
     inline fun _fill_up_auction_info(sellerAddress: Address, reservePrice: Int, buyNowPrice: Int, auctionPeriod: Int, beneficiary: Address?): AuctionInfo {
         if(beneficiary == null) {
@@ -566,7 +625,7 @@ contract FNFTItem with NFTItemStandard, Lockable, Ownable {
     }
     
     inline fun get_jetton_master_init(): StateInit {
-        return initOf NFTFraction(DEFAULT_RESERVE_PRICE, self.fraction_params.max_supply, myAddress(), self.fraction_params.jetton_content);
+        return initOf NFTFraction(DEFAULT_RESERVE_PRICE, self.fraction_params.max_supply, myAddress(), self.fraction_params.jetton_content, self.nullifier);
     }
 
     inline fun get_nft_auction_init(seller: Address): StateInit {
@@ -577,8 +636,6 @@ contract FNFTItem with NFTItemStandard, Lockable, Ownable {
         let nftAuctionInit: StateInit = self.get_nft_auction_init(seller);
         return contractAddress(nftAuctionInit);
     }
-
-    
 
     inline fun fractionalize_validate(ctx: Context, msg: Transfer) {
         self.ensureUnlocked();
@@ -749,6 +806,9 @@ contract FNFTItem with NFTItemStandard, Lockable, Ownable {
 
     get fun debug_get_owner(): Address {
         return self.owner;
+    }
+    get fun debug_get_nullifier(): Int {
+        return self.nullifier;
     }
 }
 

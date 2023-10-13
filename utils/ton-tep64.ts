@@ -17,8 +17,8 @@ export interface JettonContent {
 function bufferToChunks(buff: Buffer, chunkSize: number) {
     let chunks: Buffer[] = [];
     while (buff.byteLength > 0) {
-        chunks.push(buff.slice(0, chunkSize));
-        buff = buff.slice(chunkSize);
+        chunks.push(buff.subarray(0, chunkSize));
+        buff = buff.subarray(chunkSize);
     }
     return chunks;
 }
@@ -56,10 +56,11 @@ export function buildJettonContent(data: JettonContent | bigint): Cell {
         dict.set(toKey('symbol'), makeSnakeCell(Buffer.from(symbol, 'utf8')));
     } else {
         Object.entries(data).forEach(([key, value]) => {
-            dict.set(toKey(key), makeSnakeCell(Buffer.from(value, 'utf8')));
+            if (!!value) {
+                dict.set(toKey(key), makeSnakeCell(Buffer.from(value, 'utf8')));
+            }
         });
     }
-
     return beginCell().storeInt(ONCHAIN_CONTENT_PREFIX, 8).storeDict(dict).endCell();
 }
 

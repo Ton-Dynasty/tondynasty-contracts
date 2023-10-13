@@ -1,5 +1,5 @@
 import { beginCell, toNano } from 'ton-core';
-import { ExampleNFTCollection, RoyaltyParams } from '../wrappers/NFTExample';
+import { ExampleNFTCollection, RoyaltyParams } from '../wrappers/NFTExample_ExampleNFTCollection';
 import { NetworkProvider } from '@ton-community/blueprint';
 
 const OFFCHAIN_TAG = 0x01;
