@@ -262,6 +262,7 @@ contract NFTFraction with JettonMaster, Estimatable, Deployable, Lockable {
             code: receiverInit.code,
             data: receiverInit.data
         });
+        // To return remaining value to msg.origin
         send(SendParameters{
             to: msg.origin,
             value: rest_value,
