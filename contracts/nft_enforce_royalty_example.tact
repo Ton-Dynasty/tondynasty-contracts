@@ -903,6 +903,7 @@ contract NFTItemAuction {
         }
     }
 
+    // @dev For complete NFT auction bid.
     inline fun _trade_bid(ctx: Context, buyNowPrice: Int) {
         let bidValue: Int = ctx.value;
         let buyer: Address = ctx.sender;
@@ -929,6 +930,7 @@ contract NFTItemAuction {
         }
     }
 
+    // @dev For fraction NFT auction bid. No buy now price, only have to compare with reserve price.
     inline fun _fraction_bid(ctx: Context) {
         let bidValue: Int = ctx.value;
         let buyer: Address = ctx.sender;
@@ -942,56 +944,6 @@ contract NFTItemAuction {
         self._update_auction();
     }
 
-    inline fun _send_prev_bid_back(bidder: Address, bidValue: Int) {
-        // Send back previous highest bid to previous highest bidder.
-        let prevNftHighestBidder: Address = self.auctionInfo.nftHighestBidder;
-        let prevNftHighestBid: Int = self.auctionInfo.nftHighestBid;
-        let paybackTon: Int = max(prevNftHighestBid - self.minTonsForStorage - self.gasConsumption,0);
-        send(SendParameters{
-            to: prevNftHighestBidder,
-            value: paybackTon, 
-            mode: SendPayGasSeparately, 
-            bounce: false,
-            body: "Pay bid money back to the prevNftHighestBidder".asComment()
-        });
-    }
-
-    inline fun _update_auction() {
-        self._update_auction_bid_period();
-        if(self.auctionEndTime == 0) { 
-            // If the auction start, then set the auction end time.
-            self._update_auction_end_time();
-        }
-    }
-
-    inline fun _initialized_validate() {
-        require(self.isInitialized == 0, "Contract is already initialized");
-    }
-
-    inline fun _owner_validate(ctx: Context) {
-        require(ctx.sender == self.nft_item, "NFTItemAuction: Only the NFT Item contract can build the auction");
-    }
-
-    inline fun _set_price_validate(buyNowPrice: Int, reservePrice: Int) {
-        require(buyNowPrice > reservePrice, "BuyNowPrice must be greater than reservePrice.");
-    }
-
-     // @dev Updates the auction bid period time based on the latest bid and the defined auction bid period
-    inline fun _update_auction_bid_period() {
-        self.auctionBidPeriod = now() + self.auctionInfo.auctionBidPeriod;
-    }
-
-    // @dev Updates the auction end time
-    inline fun _update_auction_end_time() {
-        self.auctionEndTime = now() + self.auctionInfo.auctionPeriod;
-    }
-
-    // @dev Stores the payload for the TransferAuction function
-    inline fun storeTransferAuctionPayload(payload: TransferAuctionPayload): Slice {
-        let builder: Builder = beginCell();
-        builder.storeAddress(payload.seller);
-        return builder.asSlice();
-    }
     // @dev Transfer the NFT to the highest bidder
     // @note If you want change msg value, you should make sure that is enough for NFT Auction market contract to transfer NFT.
     inline fun _transfer_nft(buyer: Address) {
@@ -1022,6 +974,52 @@ contract NFTItemAuction {
             body: "EndFractionAuction".asComment(),
             bounce: false
         });
+    }
+
+    // @dev Send back previous highest bid to previous highest bidder.
+    inline fun _send_prev_bid_back(bidder: Address, bidValue: Int) {
+        // Send back previous highest bid to previous highest bidder.
+        let prevNftHighestBidder: Address = self.auctionInfo.nftHighestBidder;
+        let prevNftHighestBid: Int = self.auctionInfo.nftHighestBid;
+        let paybackTon: Int = max(prevNftHighestBid - self.minTonsForStorage - self.gasConsumption,0);
+        send(SendParameters{
+            to: prevNftHighestBidder,
+            value: paybackTon, 
+            mode: SendPayGasSeparately, 
+            bounce: false,
+            body: "Pay bid money back to the prevNftHighestBidder".asComment()
+        });
+    }
+
+    // @dev Update auction bid period and auction end time.
+    inline fun _update_auction() {
+        self._update_auction_bid_period();
+        if(self.auctionEndTime == 0) { 
+            // If the auction start, then set the auction end time.
+            self._update_auction_end_time();
+        }
+    }
+
+    inline fun _initialized_validate() {
+        require(self.isInitialized == 0, "Contract is already initialized");
+    }
+
+    inline fun _owner_validate(ctx: Context) {
+        require(ctx.sender == self.nft_item, "NFTItemAuction: Only the NFT Item contract can build the auction");
+    }
+
+    inline fun _set_price_validate(buyNowPrice: Int, reservePrice: Int) {
+        require(buyNowPrice > reservePrice, "BuyNowPrice must be greater than reservePrice.");
+    }
+
+     // @dev Updates the auction bid period time based on the latest bid and the defined auction bid period
+    inline fun _update_auction_bid_period() {
+        self.auctionBidPeriod = now() + self.auctionInfo.auctionBidPeriod;
+    }
+
+    // @dev Updates the auction end time
+    inline fun _update_auction_end_time() {
+        self.auctionEndTime = now() + self.auctionInfo.auctionPeriod;
     }
 
     // @dev Initializes the auction end time to 0, allowing the seller to auction the NFT again in the future
