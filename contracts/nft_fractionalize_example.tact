@@ -145,8 +145,6 @@ contract FNFTCollection with NFTCollectionStandard, NFTRoyaltyStandard, Estimata
         self.next_item_index = self.next_item_index + 1;
     }
 
-
-
     inline fun get_fraction_param(index: Int): FractionParams {
         let content_cell: Cell? = null;
         let value1: Builder = beginCell();
