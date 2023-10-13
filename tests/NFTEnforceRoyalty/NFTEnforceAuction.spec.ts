@@ -1,4 +1,10 @@
-import { Blockchain, SandboxContract, TreasuryContract, printTransactionFees } from '@ton-community/sandbox';
+import {
+    Blockchain,
+    SandboxContract,
+    TreasuryContract,
+    prettyLogTransactions,
+    printTransactionFees,
+} from '@ton-community/sandbox';
 import { Address, beginCell, toNano } from 'ton-core';
 import { FNFTCollection, RoyaltyParams, Trade } from '../../wrappers/FNFTEnforce_FNFTCollection';
 import { FNFTItem } from '../../wrappers/FNFTEnforce_FNFTItem';
@@ -247,7 +253,8 @@ describe('NFTAuctionExample', () => {
             },
             'settleAuction'
         );
-        //printTransactionFees(settleAuctionResult2.transactions);
+        printTransactionFees(settleAuctionResult2.transactions);
+        prettyLogTransactions(settleAuctionResult2.transactions);
         // Check buyer2 send settleAuction message to NftAuction
         expect(settleAuctionResult2.transactions).toHaveTransaction({
             from: buyer3.address,
@@ -272,5 +279,11 @@ describe('NFTAuctionExample', () => {
         });
         const newOwner: Address = await nftItem.getDebugGetOwner();
         expect(newOwner.toString()).toEqual(buyer3.address.toString());
+        const nftAuthor = await nftItem.getDebugGetRoyaltyDestination();
+        expect(settleAuctionResult2.transactions).toHaveTransaction({
+            from: nftItem.address,
+            to: nftAuthor,
+            success: true,
+        });
     });
 });
