@@ -698,6 +698,27 @@ contract FNFTItem with NFTItemStandard, Lockable, Ownable {
             body: Excesses { query_id: msg.query_id }.toCell()
         });
     }
+    inline fun isAuctionAddress(ctx: Context): Bool {
+        return ctx.sender == self.get_nft_auction_address();
+    }
+    inline fun isWhitelisted(ctx: Context): Bool {
+        return ctx.sender == self.fraction_params.author || ctx.sender == self.collection_address  || self.isAuctionAddress(ctx);
+    }
+    inline fun _end_auction_transfer(ctx: Context, msg: Transfer, remain: Int) {
+        let royalty_reward: Int = remain * self.royalty_params.numerator / self.royalty_params.denominator;
+        send(SendParameters{ 
+            to: self.royalty_params.destination,
+            value: royalty_reward,
+            mode: SendIgnoreErrors
+        });
+        self.unlock();
+        send(SendParameters{ 
+            to: msg.response_destination,
+            value: remain - royalty_reward - ctx.readForwardFee(),
+            mode: SendIgnoreErrors,
+            body: "EndFractionAuction".asComment()
+        });
+    }
     // @dev  transfer transfer nft with royalty enforcement
     // @note - If whitelisted or self.quota > 0 do not enforce royalty:
     //          WhiteListed:
@@ -714,10 +735,10 @@ contract FNFTItem with NFTItemStandard, Lockable, Ownable {
     //              a. a part of nft fraction (jetton) will be minted to the receiver
     //              b. the remain part of nft fraction (jetton) will be minted to the author
     override inline fun transfer(ctx: Context, msg: Transfer, remain: Int) {
-        let isAuctionAddress: Bool = ctx.sender == self.get_nft_auction_address();
-        let isWhitelisted: Bool = ctx.sender == self.fraction_params.author || ctx.sender == self.collection_address  || isAuctionAddress;
-        if (isWhitelisted || self.quota > 0) {
-            if (self.quota > 0 && !isWhitelisted) {
+        let isWhitelisted: Bool = self.isWhitelisted(ctx);  
+        let isAuctionAddress: Bool = self.isAuctionAddress(ctx);
+        if (isWhitelisted || self.quota > 0) { // Will not enforce royalty
+            if (!isWhitelisted) {
                 self.quota = self.quota - 1;
             }
             self.owner = msg.new_owner;
@@ -736,26 +757,14 @@ contract FNFTItem with NFTItemStandard, Lockable, Ownable {
             }
             remain = remain - ctx.readForwardFee();
             if (msg.response_destination != newAddress(0, 0) && remain > msg.forward_amount) { 
-                if (isAuctionAddress) { // TransferAuctionPayload
-                    let royalty_reward: Int = remain * self.royalty_params.numerator / self.royalty_params.denominator;
-                    send(SendParameters{ 
-                        to: self.royalty_params.destination,
-                        value: royalty_reward,
-                        mode: SendIgnoreErrors
-                    });
-                    self.unlock();
-                    send(SendParameters{ 
-                        to: msg.response_destination,
-                        value: remain - royalty_reward - ctx.readForwardFee(),
-                        mode: SendIgnoreErrors,
-                        body: "EndFractionAuction".asComment()
-                    });
+                if (isAuctionAddress) {
+                    self._end_auction_transfer(ctx, msg, remain);
                 }
                 else {
                     send(SendParameters{ 
                         to: msg.response_destination,
                         value: 0,
-                        mode: SendRemainingBalance,
+                        mode: SendRemainingValue,
                         body: Excesses { query_id: msg.query_id }.toCell()
                     });
                 }
