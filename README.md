@@ -1,6 +1,6 @@
 <div style="display: flex; align-items: center; justify-content: center;">
-  <img src="logo.png" alt="OpenZeppelin" height="40px">
-  <h2 style="margin-left: 10px;">Ton Dynasty Contract</h2>
+  <img src="logo.png" alt="Ton Dynasty Logo" height="40px">
+  <h1 style="margin-left: 10px;">Ton Dynasty Contract</h1>
 </div>
 
 **Ton Dynasty Contract is a library for efficient smart contract development by tact-lang.**
