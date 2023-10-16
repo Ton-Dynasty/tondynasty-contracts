@@ -28,7 +28,7 @@ Once you leverage our library, you can build contracts efficiently.
 
 ### Example Jetton Contract
 
-```tact
+```js
 import "@stdlib/deploy";
 import "./packages/token/jetton/JettonMaster";
 import "./packages/token/jetton/JettonWallet";
