@@ -9,6 +9,27 @@ import "./packages/utils/Estimatable";
 import "./packages/utils/Lockable";
 import "./packages/token/nft/NFTAuction";
 import "./packages/token/nft/NFTAuctionMarket";
+
+/*
+This code implements the POC (Proof of Concept) version of our proposed Hybrid NFT Enforced Royalty standard.
+This standard is compatible with the existing TEP-0062, TEP-0064, TEP-0066, and TEP-0074, 
+and has been validated through unit testing.
+
+We proposed a solution to the problem of NFT royalty enforcement, tackling the problem by
+introducing a new concept of fractionalization as royalty.
+
+Before reading through the code, you can familiarize yourself with our thoughts via our blog post:
+https://ton-dynasty.github.io/docs.contracts/blog/nft-enforced-royalty
+
+The code consists of 6 contracts:
+1. FNFTCollection: The collection contract of the NFT item
+2. FNFTItem: The NFT item contract
+3. NFTFraction: The contract that manages the fractionalization of NFT items
+4. NFTFractionWallet: The wallet contract of NFTFraction
+5. QuotaShop: The contract that manages the quota of NFTFraction
+6. NFTItemAuction: The contract that manages the auction of NFT items
+*/
+
 @name(udict_set_ref)
 native udict_set_ref(dict: Cell?, key_len: Int, index: Int, value: Cell): Cell?; 
 
