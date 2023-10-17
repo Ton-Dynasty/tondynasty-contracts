@@ -7,6 +7,8 @@
 
 - Implementations of standards like [TEP-0062](https://github.com/ton-blockchain/TEPs/blob/master/text/0062-nft-standard.md), [TEP-0074](https://github.com/ton-blockchain/TEPs/blob/master/text/0074-jettons-standard.md)
 - Reusable [traits](https://docs.tact-lang.org/language/guides/types#traits) for common contract types like `Lockable`, `Estimatible`, etc.
+- Provide series of template for ton developers to utilize.
+- Ton Dynasty will always stand by you. Ask for our help in [Ton Dynasty Community](https://t.me/ton_dynasty_community).
 
 ## Overview
 
