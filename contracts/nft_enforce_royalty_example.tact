@@ -12,13 +12,13 @@ import "./packages/token/nft/NFTAuctionMarket";
 
 /*
 This code implements the POC (Proof of Concept) version of our proposed Hybrid NFT Enforced Royalty standard.
-This standard is compatible with the existing TEP-0062, TEP-0064, TEP-0066, and TEP-0074, 
-and has been validated through unit testing.
+This standard is compatible with the existing TEP-0062, TEP-0064, TEP-0066, and TEP-0074.
+These contracts has been validated through unit testing.
 
 We proposed a solution to the problem of NFT royalty enforcement, tackling the problem by
 introducing a new concept of fractionalization as royalty.
 
-Before reading through the code, you can familiarize yourself with our thoughts via our blog post:
+Before delving into the code, we kindly invite you to acquaint yourself with our perspectives by reading our blog post:
 https://ton-dynasty.github.io/docs.contracts/blog/nft-enforced-royalty
 
 The code consists of 6 contracts:
