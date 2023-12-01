@@ -38,8 +38,8 @@ message(0xd53276db) JettonExcesses {
 message(0x178d4519) JettonInternalTransfer {
     query_id: Int as uint64;                // arbitrary request number
     amount: Int as coins;                   // amount of jettons to transfer
-    response_address: Address;              // address where to send a response with confirmation of a successful transfer and the rest of the incoming message coins.
     from: Address;                          // address of the sender of the jettons 
+    response_address: Address;              // address where to send a response with confirmation of a successful transfer and the rest of the incoming message coins.
     forward_ton_amount: Int as coins;       // the amount of nanotons to be sent to the destination address.
     forward_payload: Slice as remaining;    // optional custom data that should be sent to the destination address.
 }
