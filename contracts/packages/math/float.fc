@@ -1,0 +1,82 @@
+;; Title: Func functions for floating point operation 
+;; Description: This file contains the functions for floating point operation
+;; Author: @alan890104
+;; Version: 0.1
+
+const ERROR_INTEGER_OVERFLOW = 4;
+
+;; requireInt128 function is used to check if the value is in the range of 128 bit integer
+int requireInt128(int) asm "128 FITS";
+
+;; requireFloat function is used to check if the value is compatible with fixed point float (128 bit integer + 64 bit decimal)
+int requireFloat(int) asm "192 FITS";
+
+;; toFloat function convert a 128 bit integer to fixed point float
+;; the precision is about log10(2^64) = 19.2659
+;; the integer part is 128 bit, the decimal part is 64 bit
+int toFloat(int value) inline_ref {
+    value.requireInt128();
+    return value << 64;
+}
+
+;; add function is used to add two fixed point float
+;; this function will not check if the value is compatible with fixed point float
+;; it is an alias function for "+" operator
+int add(int floatA, int floatB) inline_ref {
+    return floatA + floatB;
+}
+
+;; sub function is used to subtract two fixed point float
+;; this function will not check if the value is compatible with fixed point float
+;; it is equivalent to "-" operator
+int sub(int floatA, int floatB) inline_ref {
+    return floatA - floatB;
+}
+
+;; mul function is used to multiply two fixed point float
+;; WARNING: the internal result may exceed 256 bit (196 bit * 196 bit = 392 bit)
+int mul(int floatA, int floatB) inline_ref {
+    return (floatA * floatB) >> 64;
+}
+
+;; div function is used to divide two fixed point float
+;; the internal result is 192 bit + 64 bit = 256 bit, so it will not overflow
+;; this function ignores checking if the value is compatible with fixed point float and division by zero
+int div(int floatA, int floatB) inline_ref {
+    return (floatA << 64) / floatB;
+}
+
+;; safeAdd function is used to add two fixed point float
+;; it will check if the value is compatible with fixed point float, if not, it will throw an error
+int safeAdd(int floatA, int floatB) inline_ref {
+    floatA.requireFloat();
+    floatB.requireFloat();
+    return floatA + floatB;
+}
+
+
+;; safeSub function is used to subtract two fixed point float
+;; it will check if the value is compatible with fixed point float, if not, it will throw an error
+int safeSub(int floatA, int floatB) inline_ref {
+    floatA.requireFloat();
+    floatB.requireFloat();
+    return floatA - floatB;
+}
+
+;; safeMul function is used to multiply two fixed point float
+;; it will check if the value is compatible with fixed point float, if not, it will throw an error
+int safeMul(int floatA, int floatB) inline_ref {
+    floatA.requireFloat();
+    floatB.requireFloat();
+    return (floatA * floatB) >> 64;
+}
+
+;; safeDiv function is used to divide two fixed point float
+;; it will check if the value is compatible with fixed point float, if not, it will throw an error
+int safeDiv(int floatA, int floatB) inline_ref {
+    throw_if(ERROR_INTEGER_OVERFLOW, floatB == 0);
+    floatA.requireFloat();
+    floatB.requireFloat();
+    return (floatA << 64) / floatB;
+}
+
