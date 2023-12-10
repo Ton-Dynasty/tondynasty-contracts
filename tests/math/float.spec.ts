@@ -83,13 +83,11 @@ describe('MathExample', () => {
         expect(safeDivResult).toEqual(5270498306774157604n);
     });
 
-    // How to test throw error?
-    // it('Should throw errorCode 4 if div by 0', async () => {
-    //     const t = async () => {
-    //         await mathContract.getDivisionByZero();
-    //     };
-    //     expect(t()).toThrowError(GetMethodError);
-    // });
+    it('Should throw errorCode 4 if div by 0', async () => {
+        await mathContract.getDivisionByZero().catch((e) => {
+            expect(e.exitCode).toEqual(4);
+        });
+    });
 
     it('0.25 + 10', async () => {
         const addTxs = await mathContract.send(
