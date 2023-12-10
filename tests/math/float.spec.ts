@@ -1,4 +1,10 @@
-import { Blockchain, SandboxContract, TreasuryContract, printTransactionFees } from '@ton-community/sandbox';
+import {
+    Blockchain,
+    SandboxContract,
+    TreasuryContract,
+    prettyLogTransactions,
+    printTransactionFees,
+} from '@ton-community/sandbox';
 import { Cell, beginCell, toNano } from 'ton-core';
 import { MathExample } from '../../wrappers/MathExample';
 import '@ton-community/test-utils';
@@ -86,7 +92,7 @@ describe('NFTExample', () => {
     // });
 
     it('0.25 + 10', async () => {
-        await mathContract.send(
+        const addTxs = await mathContract.send(
             deployer.getSender(),
             {
                 value: toNano('0.05'),
@@ -98,12 +104,14 @@ describe('NFTExample', () => {
                 op: 0n,
             }
         );
+        console.log("Add")
+        printTransactionFees(addTxs.transactions);
         const addResult = await mathContract.getResult();
         expect(Number(addResult)).toBeCloseTo(Number(toFloat(10.25)));
     });
 
     it('0.25 - 10', async () => {
-        await mathContract.send(
+        const subTxs = await mathContract.send(
             deployer.getSender(),
             {
                 value: toNano('0.05'),
@@ -115,12 +123,14 @@ describe('NFTExample', () => {
                 op: 1n,
             }
         );
+        console.log("Sub")
+        printTransactionFees(subTxs.transactions);
         const subResult = await mathContract.getResult();
         expect(Number(subResult)).toBeCloseTo(Number(toFloat(-9.75)));
     });
 
     it('0.25 * 10', async () => {
-        await mathContract.send(
+        const mulTxs = await mathContract.send(
             deployer.getSender(),
             {
                 value: toNano('0.05'),
@@ -132,12 +142,14 @@ describe('NFTExample', () => {
                 op: 2n,
             }
         );
+        console.log("Mul")
+        printTransactionFees(mulTxs.transactions);
         const mulResult = await mathContract.getResult();
         expect(Number(mulResult)).toBeCloseTo(Number(toFloat(2.5)));
     });
 
     it('0.25 / 10', async () => {
-        await mathContract.send(
+        const divTxs = await mathContract.send(
             deployer.getSender(),
             {
                 value: toNano('0.05'),
@@ -149,6 +161,8 @@ describe('NFTExample', () => {
                 op: 3n,
             }
         );
+        console.log("Div")
+        printTransactionFees(divTxs.transactions);
         const divResult = await mathContract.getResult();
         expect(Number(divResult)).toBeCloseTo(Number(toFloat(0.025)));
     });
