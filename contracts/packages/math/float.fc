@@ -80,3 +80,16 @@ int safeDiv(int floatA, int floatB) inline_ref {
     return (floatA << 64) / floatB;
 }
 
+;; sqrtFloat function is used to calculate the square root of a fixed point float
+;; used newton's method to approximate the square root, since the precision is 64 bit, we need to shift 32 bit back
+int sqrtFloat(int x) inline_ref {
+    int z = (x + 1) / 2;
+    int y = x;
+    while (z < y) {
+        y = z;
+        z = (x / z + z) / 2;
+    }
+    ;; y << (self.precision // 2)
+    ;; The precision of fixed point float is 64 bit, so we need to shift 32 bit back
+    return y << 32;
+}
