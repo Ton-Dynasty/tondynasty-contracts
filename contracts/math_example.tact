@@ -28,10 +28,36 @@ extends native mul(self: Int, b: Int): Int;
 @name(div)
 extends native div(self: Int, b: Int): Int;
 
+message Arithmetic {
+    floatA: Int;
+    floatB: Int;
+    op: Int; // 0: add, 1: sub, 2: mul, 3: div
+}
+
 contract MathExample with Deployable {
     x: Int = 2;
     y: Int = 7;
+    result: Int = 0;
     init(){}
+
+    receive(msg: Arithmetic){
+        if (msg.op == 0) {
+            self.result = msg.floatA.safeAdd(msg.floatB);
+            return ;
+        }
+        if (msg.op == 1) {
+            self.result = msg.floatA.safeSub(msg.floatB);
+            return ;
+        }
+        if (msg.op == 2) {
+            self.result = msg.floatA.safeMul(msg.floatB);
+            return ;
+        }
+        if (msg.op == 3) {
+            self.result = msg.floatA.safeDiv(msg.floatB);
+            return ;
+        }
+    }
 
     get fun float(value: Int): Int {
         return value.toFloat();
@@ -90,5 +116,9 @@ contract MathExample with Deployable {
         let a: Int = self.x.toFloat();
         let b: Int = 0;
         return a.div(b);
+    }
+
+    get fun Result(): Int {
+        return self.result;
     }
 }

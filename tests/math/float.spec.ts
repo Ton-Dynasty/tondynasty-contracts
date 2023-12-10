@@ -1,8 +1,13 @@
 import { Blockchain, SandboxContract, TreasuryContract, printTransactionFees } from '@ton-community/sandbox';
 import { Cell, beginCell, toNano } from 'ton-core';
 import { MathExample } from '../../wrappers/MathExample';
-import { GetMethodError } from '@ton-community/sandbox';
 import '@ton-community/test-utils';
+import { Decimal } from 'decimal.js';
+
+function toFloat(value: number, decimals: number = 64): bigint {
+    const d = new Decimal(value).mul(new Decimal(2).pow(decimals)).floor();
+    return BigInt(d.toString());
+}
 
 describe('NFTExample', () => {
     let blockchain: Blockchain;
@@ -72,10 +77,79 @@ describe('NFTExample', () => {
         expect(safeDivResult).toEqual(5270498306774157604n);
     });
 
+    // How to test throw error?
     // it('Should throw errorCode 4 if div by 0', async () => {
     //     const t = async () => {
     //         await mathContract.getDivisionByZero();
     //     };
     //     expect(t()).toThrowError(GetMethodError);
     // });
+
+    it('0.25 + 10', async () => {
+        await mathContract.send(
+            deployer.getSender(),
+            {
+                value: toNano('0.05'),
+            },
+            {
+                $$type: 'Arithmetic',
+                floatA: toFloat(0.25),
+                floatB: toFloat(10),
+                op: 0n,
+            }
+        );
+        const addResult = await mathContract.getResult();
+        expect(Number(addResult)).toBeCloseTo(Number(toFloat(10.25)));
+    });
+
+    it('0.25 - 10', async () => {
+        await mathContract.send(
+            deployer.getSender(),
+            {
+                value: toNano('0.05'),
+            },
+            {
+                $$type: 'Arithmetic',
+                floatA: toFloat(0.25),
+                floatB: toFloat(10),
+                op: 1n,
+            }
+        );
+        const subResult = await mathContract.getResult();
+        expect(Number(subResult)).toBeCloseTo(Number(toFloat(-9.75)));
+    });
+
+    it('0.25 * 10', async () => {
+        await mathContract.send(
+            deployer.getSender(),
+            {
+                value: toNano('0.05'),
+            },
+            {
+                $$type: 'Arithmetic',
+                floatA: toFloat(0.25),
+                floatB: toFloat(10),
+                op: 2n,
+            }
+        );
+        const mulResult = await mathContract.getResult();
+        expect(Number(mulResult)).toBeCloseTo(Number(toFloat(2.5)));
+    });
+
+    it('0.25 / 10', async () => {
+        await mathContract.send(
+            deployer.getSender(),
+            {
+                value: toNano('0.05'),
+            },
+            {
+                $$type: 'Arithmetic',
+                floatA: toFloat(0.25),
+                floatB: toFloat(10),
+                op: 3n,
+            }
+        );
+        const divResult = await mathContract.getResult();
+        expect(Number(divResult)).toBeCloseTo(Number(toFloat(0.025)));
+    });
 });
