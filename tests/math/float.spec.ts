@@ -15,7 +15,7 @@ function toFloat(value: number, decimals: number = 64): bigint {
     return BigInt(d.toString());
 }
 
-describe('NFTExample', () => {
+describe('MathExample', () => {
     let blockchain: Blockchain;
     let deployer: SandboxContract<TreasuryContract>;
     let mathContract: SandboxContract<MathExample>;
@@ -83,13 +83,11 @@ describe('NFTExample', () => {
         expect(safeDivResult).toEqual(5270498306774157604n);
     });
 
-    // How to test throw error?
-    // it('Should throw errorCode 4 if div by 0', async () => {
-    //     const t = async () => {
-    //         await mathContract.getDivisionByZero();
-    //     };
-    //     expect(t()).toThrowError(GetMethodError);
-    // });
+    it('Should throw errorCode 4 if div by 0', async () => {
+        await mathContract.getDivisionByZero().catch((e) => {
+            expect(e.exitCode).toEqual(4);
+        });
+    });
 
     it('0.25 + 10', async () => {
         const addTxs = await mathContract.send(
@@ -104,7 +102,7 @@ describe('NFTExample', () => {
                 op: 0n,
             }
         );
-        console.log("Add")
+        console.log('Add');
         printTransactionFees(addTxs.transactions);
         const addResult = await mathContract.getResult();
         expect(Number(addResult)).toBeCloseTo(Number(toFloat(10.25)));
@@ -123,7 +121,7 @@ describe('NFTExample', () => {
                 op: 1n,
             }
         );
-        console.log("Sub")
+        console.log('Sub');
         printTransactionFees(subTxs.transactions);
         const subResult = await mathContract.getResult();
         expect(Number(subResult)).toBeCloseTo(Number(toFloat(-9.75)));
@@ -142,7 +140,7 @@ describe('NFTExample', () => {
                 op: 2n,
             }
         );
-        console.log("Mul")
+        console.log('Mul');
         printTransactionFees(mulTxs.transactions);
         const mulResult = await mathContract.getResult();
         expect(Number(mulResult)).toBeCloseTo(Number(toFloat(2.5)));
@@ -161,9 +159,47 @@ describe('NFTExample', () => {
                 op: 3n,
             }
         );
-        console.log("Div")
+        console.log('Div');
         printTransactionFees(divTxs.transactions);
         const divResult = await mathContract.getResult();
         expect(Number(divResult)).toBeCloseTo(Number(toFloat(0.025)));
+    });
+
+    it('Sqrt 0.05', async () => {
+        const sqrtTxs = await mathContract.send(
+            deployer.getSender(),
+            {
+                value: toNano('0.05'),
+            },
+            {
+                $$type: 'Arithmetic',
+                floatA: toFloat(0.25),
+                floatB: 0n,
+                op: 4n,
+            }
+        );
+        console.log('Sqrt');
+        printTransactionFees(sqrtTxs.transactions);
+        const sqrtResult = await mathContract.getResult();
+        expect(Number(sqrtResult)).toBeCloseTo(Number(toFloat(0.5)));
+    });
+
+    it('Sqrt 25', async () => {
+        const sqrtTxs = await mathContract.send(
+            deployer.getSender(),
+            {
+                value: toNano('0.05'),
+            },
+            {
+                $$type: 'Arithmetic',
+                floatA: toFloat(25),
+                floatB: 0n,
+                op: 4n,
+            }
+        );
+        console.log('Sqrt');
+        printTransactionFees(sqrtTxs.transactions);
+        const sqrtResult = await mathContract.getResult();
+        expect(Number(sqrtResult)).toBeCloseTo(Number(toFloat(5)));
     });
 });

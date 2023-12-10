@@ -1,0 +1,30 @@
+name: CI
+
+# trigger on Pull request for all branches and on push for master branch
+on:
+    pull_request:
+        branches:
+            - '*'
+    push:
+        branches:
+            - master
+jobs:
+    build:
+        name: Test
+        runs-on: ubuntu-latest
+        strategy:
+            matrix:
+                node: [16, 18]
+        steps:
+            - uses: actions/checkout@v4
+            - name: Setup node
+              uses: actions/setup-node@v4
+              with:
+                  node-version: ${{ matrix.node }}
+                  cache: 'yarn'
+            - name: Install dependencies
+              run: yarn install --frozen-lockfile
+            - name: Build contracts
+              run: yarn build
+            - name: Run tests
+              run: yarn test

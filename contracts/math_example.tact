@@ -28,6 +28,9 @@ extends native mul(self: Int, b: Int): Int;
 @name(div)
 extends native div(self: Int, b: Int): Int;
 
+@name(sqrtFloat)
+extends native sqrtFloat(self: Int): Int;
+
 message Arithmetic {
     floatA: Int;
     floatB: Int;
@@ -55,6 +58,10 @@ contract MathExample with Deployable {
         }
         if (msg.op == 3) {
             self.result = msg.floatA.safeDiv(msg.floatB);
+            return ;
+        }
+        if (msg.op == 4) {
+            self.result = msg.floatA.sqrtFloat();
             return ;
         }
     }
