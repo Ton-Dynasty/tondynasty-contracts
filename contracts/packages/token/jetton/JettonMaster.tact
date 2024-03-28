@@ -29,20 +29,17 @@ message JettonMint {
 }
 message(0x2c76b973) ProvideWalletAddress {
     query_id: Int as uint64;
-    owner_address: Address;
+    owner_address: Address?;
     include_address: Bool;
 }
 message(0xd1735400) TakeWalletAddress {
     query_id: Int as uint64;
-    wallet_address: Address?;
-    owner_address: Cell?;
+    wallet_address: Address;
+    owner_address: Address?;
 }
 
 @name(is_resolvable)
-native is_resolvable(addr: Address): Bool;
-
-@name(store_maybe_ref)
-native store_maybe_ref(b: Builder, c: Cell?): Builder;
+native is_resolvable(addr: Address?): Bool;
 
 @name(_send_wallet_address_reslove)
 native _send_wallet_address_reslove(sender: Address, query_id: Int, owner_address: Address, wallet_address: Address): Cell;
@@ -149,15 +146,15 @@ trait JettonMaster {
         let body: Cell? = null;
         if (msg.include_address){
             if(is_resolvable(msg.owner_address)){
-                dump("1111");
-                let wallet_address: Address = contractAddress(self.calculate_jetton_wallet_init(msg.owner_address));
-                body = _send_wallet_address_reslove(ctx.sender, msg.query_id, msg.owner_address, wallet_address);
+                // dump("1111");
+                let wallet_address: Address = contractAddress(self.calculate_jetton_wallet_init(msg.owner_address!!));
+                body = _send_wallet_address_reslove(ctx.sender, msg.query_id, msg.owner_address!!, wallet_address);
             } else {
-                dump("2222");
-                body = _send_wallet_address_true_unreslove(ctx.sender, msg.query_id, msg.owner_address);
+                // dump("2222");
+                body = _send_wallet_address_true_unreslove(ctx.sender, msg.query_id, msg.owner_address!!);
             }
         } else {
-            dump("3333");
+            // dump("3333");
             body = _send_wallet_address_false_unreslove(ctx.sender, msg.query_id);
         }
         send(SendParameters{

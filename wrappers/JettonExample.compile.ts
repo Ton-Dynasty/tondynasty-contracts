@@ -9,5 +9,6 @@ export const compile: CompilerConfig = {
         experimental: {
             inline: true,
         },
+        masterchain: true,
     },
 };

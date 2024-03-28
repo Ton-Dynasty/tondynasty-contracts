@@ -5,11 +5,10 @@ import {
     printTransactionFees,
     prettyLogTransactions,
 } from '@ton/sandbox';
-import { Cell, beginCell, toNano } from '@ton/core';
+import { Address, Cell, Slice, beginCell, toNano } from '@ton/core';
 import { ExampleJettonMaster, ProvideWalletAddress, JettonBurn } from '../build/JettonExample/tact_ExampleJettonMaster';
 import { ExampleJettonWallet, JettonTransfer } from '../wrappers/JettonExample_ExampleJettonWallet';
 import '@ton/test-utils';
-// import { Address, JettonMaster } from 'ton';
 
 describe('JettonExample', () => {
     let blockchain: Blockchain;
@@ -32,7 +31,7 @@ describe('JettonExample', () => {
             {
                 $$type: 'Deploy',
                 queryId: 0n,
-            }
+            },
         );
 
         expect(deployResult.transactions).toHaveTransaction({
@@ -55,7 +54,7 @@ describe('JettonExample', () => {
             {
                 value: toNano('1'),
             },
-            'Mint:1'
+            'Mint:1',
         );
         //printTransactionFees(mintyResult.transactions);
 
@@ -94,7 +93,7 @@ describe('JettonExample', () => {
             {
                 value: toNano('1'),
             },
-            'Mint:1'
+            'Mint:1',
         );
         // Alice's jetton wallet address
         const aliceWalletAddress = await jettonMaster.getGetWalletAddress(alice.address);
@@ -108,7 +107,7 @@ describe('JettonExample', () => {
             {
                 value: toNano('1'),
             },
-            'Mint:1'
+            'Mint:1',
         );
         // Bob's jetton wallet address
         const bobWalletAddress = await jettonMaster.getGetWalletAddress(bob.address);
@@ -132,7 +131,7 @@ describe('JettonExample', () => {
             {
                 value: toNano('1'),
             },
-            jettonTransfer
+            jettonTransfer,
         );
         //printTransactionFees(transfterResult.transactions);
 
@@ -169,7 +168,7 @@ describe('JettonExample', () => {
             {
                 value: toNano('1'),
             },
-            'Mint:1'
+            'Mint:1',
         );
 
         const jettonBurn: JettonBurn = {
@@ -193,7 +192,7 @@ describe('JettonExample', () => {
             {
                 value: toNano('1'),
             },
-            jettonBurn
+            jettonBurn,
         );
         //printTransactionFees(burnResult.transactions);
 
@@ -239,11 +238,11 @@ describe('JettonExample', () => {
             {
                 value: toNano('10'),
             },
-            provideWalletAddress
+            provideWalletAddress,
         );
 
-        printTransactionFees(provideWalletAddressResult.transactions);
-        prettyLogTransactions(provideWalletAddressResult.transactions);
+        // printTransactionFees(provideWalletAddressResult.transactions);
+        // prettyLogTransactions(provideWalletAddressResult.transactions);
 
         expect(provideWalletAddressResult.transactions).toHaveTransaction({
             from: coco.address,
@@ -256,5 +255,156 @@ describe('JettonExample', () => {
             to: coco.address,
             success: true,
         });
+    });
+    it("should discover JettonWallet's address", async () => {
+        alice = await blockchain.treasury('alice');
+        // Mint 1 token to Alice first to build her jetton wallet
+        const mintyResult = await jettonMaster.send(
+            alice.getSender(),
+            {
+                value: toNano('1'),
+            },
+            'Mint:1',
+        );
+        // Alice's jetton wallet address
+        const aliceWalletAddress = await jettonMaster.getGetWalletAddress(alice.address);
+
+        // send ProvideWalletAddress msg to JettonMaster
+        const provideWalletAddress: ProvideWalletAddress = {
+            $$type: 'ProvideWalletAddress',
+            query_id: 0n,
+            owner_address: alice.address,
+            include_address: true,
+        };
+        const provideWalletAddressResult = await jettonMaster.send(
+            alice.getSender(),
+            {
+                value: toNano('10'),
+            },
+            provideWalletAddress,
+        );
+        // check that Alice send ProvideWalletAddress msg to JettonMaster
+        expect(provideWalletAddressResult.transactions).toHaveTransaction({
+            from: alice.address,
+            to: jettonMaster.address,
+            success: true,
+        });
+        // check that JettonMaster send ProvideWalletAddressResponse msg to Alice
+        expect(provideWalletAddressResult.transactions).toHaveTransaction({
+            from: jettonMaster.address,
+            to: alice.address,
+            success: true,
+        });
+        // check that the response contains the correct address
+        // @ts-ignore
+
+        const response = provideWalletAddressResult['events'][1].body;
+        // console.log(response);
+        const parseResult: Slice = response.beginParse();
+        const opCode = parseResult.loadUint(32);
+        // console.log(opCode);
+        const queryId = parseResult.loadUint(64);
+        // console.log(queryId);
+        const jettonWalletAddress = parseResult.loadAddress().toString();
+        // console.log(jettonWalletAddress);
+        expect(jettonWalletAddress).toEqual(aliceWalletAddress.toString());
+    });
+    it('should fail to discover JettonWallet address', async () => {
+        alice = await blockchain.treasury('alice');
+
+        // send ProvideWalletAddress msg to JettonMaster
+        const provideWalletAddress: ProvideWalletAddress = {
+            $$type: 'ProvideWalletAddress',
+            query_id: 0n,
+            owner_address: alice.address,
+            include_address: false,
+        };
+        const provideWalletAddressResult = await jettonMaster.send(
+            alice.getSender(),
+            {
+                value: toNano('10'),
+            },
+            provideWalletAddress,
+        );
+        // check that Alice send ProvideWalletAddress msg to JettonMaster
+        expect(provideWalletAddressResult.transactions).toHaveTransaction({
+            from: alice.address,
+            to: jettonMaster.address,
+            success: true,
+        });
+        // check that JettonMaster send ProvideWalletAddressResponse msg to Alice
+        expect(provideWalletAddressResult.transactions).toHaveTransaction({
+            from: jettonMaster.address,
+            to: alice.address,
+            success: true,
+        });
+        // check that the response contains the correct address
+        // @ts-ignore
+        const response = provideWalletAddressResult['events'][1].body;
+        // console.log(response);
+        const parseResult: Slice = response.beginParse();
+        const opCode = parseResult.loadUint(32);
+        // console.log(opCode);
+        const queryId = parseResult.loadUint(64);
+        // console.log(queryId);
+        const jettonWalletAddress = parseResult.loadUint(2);
+        // console.log(jettonWalletAddress);
+        expect(jettonWalletAddress).toEqual(0);
+        const include_address = parseResult.loadMaybeRef();
+        // console.log(include_address);
+        expect(include_address).toEqual(null);
+    });
+    it('should fail to discover JettonWallet address', async () => {
+        alice = await blockchain.treasury('alice');
+
+        const wrongWorkChainAddress = Address.parseRaw(
+            '-1:510021ff261b39612b080982312c030e3d101fdf25856cb83c8bdda294b18493',
+        );
+        // console.log(wrongWorkChainAddress);
+        // send ProvideWalletAddress msg to JettonMaster
+        const provideWalletAddress: ProvideWalletAddress = {
+            $$type: 'ProvideWalletAddress',
+            query_id: 0n,
+            owner_address: wrongWorkChainAddress,
+            include_address: true,
+        };
+        const provideWalletAddressResult = await jettonMaster.send(
+            alice.getSender(),
+            {
+                value: toNano('10'),
+            },
+            provideWalletAddress,
+        );
+
+        // prettyLogTransactions(provideWalletAddressResult.transactions);
+        // printTransactionFees(provideWalletAddressResult.transactions);
+
+        // check that Alice send ProvideWalletAddress msg to JettonMaster
+        expect(provideWalletAddressResult.transactions).toHaveTransaction({
+            from: alice.address,
+            to: jettonMaster.address,
+            success: true,
+        });
+        // check that JettonMaster send ProvideWalletAddressResponse msg to Alice
+        expect(provideWalletAddressResult.transactions).toHaveTransaction({
+            from: jettonMaster.address,
+            to: alice.address,
+            success: true,
+        });
+        // check that the response contains the correct address
+        // @ts-ignore
+        const response = provideWalletAddressResult['events'][1].body;
+        // console.log(response);
+        const parseResult: Slice = response.beginParse();
+        const opCode = parseResult.loadUint(32);
+        // console.log(opCode);
+        const queryId = parseResult.loadUint(64);
+        // console.log(queryId);
+        const jettonWalletAddress = parseResult.loadUint(2);
+        // console.log(jettonWalletAddress);
+        expect(jettonWalletAddress).toEqual(0);
+        const include_address = parseResult.loadMaybeRef()?.beginParse().loadAddress();
+        // console.log(include_address);
+        expect(include_address?.toString()).toEqual(wrongWorkChainAddress.toString());
     });
 });
