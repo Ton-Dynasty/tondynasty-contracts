@@ -1,5 +1,6 @@
 import { sha256_sync } from 'ton-crypto';
-import { Cell, Dictionary, beginCell } from 'ton-core';
+// import { Cell, Dictionary, beginCell } from 'ton-core';
+import { Cell, Dictionary, beginCell } from '@ton/core';
 
 export const ONCHAIN_CONTENT_PREFIX = 0x00;
 export const OFFCHAIN_TAG = 0x01;
