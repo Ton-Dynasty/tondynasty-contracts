@@ -44,9 +44,14 @@ native is_resolvable(addr: Address): Bool;
 @name(store_maybe_ref)
 native store_maybe_ref(b: Builder, c: Cell?): Builder;
 
-@name(_send_wallet_address)
-native _send_wallet_address(sender_address: Address, query_id: Int, owner_address: Address, include_address_flag: Bool, jetton_wallet_code: Cell);
+@name(_send_wallet_address_reslove)
+native _send_wallet_address_reslove(sender: Address, query_id: Int, owner_address: Address, wallet_address: Address): Cell;
 
+@name(_send_wallet_address_true_unreslove)
+native _send_wallet_address_true_unreslove(sender: Address, query_id: Int, owner_address: Address): Cell;
+
+@name(_send_wallet_address_false_unreslove)
+native _send_wallet_address_false_unreslove(sender: Address, query_id: Int): Cell;
 
 trait JettonMaster {
     total_supply: Int; // the total number of issued jettons
@@ -138,10 +143,33 @@ trait JettonMaster {
     }
 
     inline fun _call_send_wallet_address(ctx: Context, msg: ProvideWalletAddress) {
+        // dump("0000");
         require(ctx.value > ton("0.0061"), "ProvideWalletAddress: insufficient funds");
-
-        _send_wallet_address(ctx.sender, msg.query_id, msg.owner_address, msg.include_address, self.calculate_jetton_wallet_init(myAddress()).code);
-
+        // dump("1111");
+        let body: Cell? = null;
+        if (msg.include_address){
+            if(is_resolvable(msg.owner_address)){
+                dump("1111");
+                let wallet_address: Address = contractAddress(self.calculate_jetton_wallet_init(msg.owner_address));
+                body = _send_wallet_address_reslove(ctx.sender, msg.query_id, msg.owner_address, wallet_address);
+            } else {
+                dump("2222");
+                body = _send_wallet_address_true_unreslove(ctx.sender, msg.query_id, msg.owner_address);
+            }
+        } else {
+            dump("3333");
+            body = _send_wallet_address_false_unreslove(ctx.sender, msg.query_id);
+        }
+        send(SendParameters{
+                to: ctx.sender,
+                value: 0,
+                bounce: false,
+                mode: 64,
+                body: body
+            }
+        );
+        
+        // dump("2222");
         // let include_address: Address? = (msg.include_address) ? msg.owner_address : null;
         // let include_address: Cell? = null;
 
