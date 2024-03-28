@@ -1,9 +1,10 @@
 import { Blockchain, SandboxContract, TreasuryContract, printTransactionFees } from '@ton-community/sandbox';
 import { Cell, beginCell, toNano } from 'ton-core';
 import { ExampleNFTCollection, RoyaltyParams } from '../wrappers/NFTExample_ExampleNFTCollection';
-import { ExampleJettonMaster, JettonBurn } from '../wrappers/JettonExample_ExampleJettonMaster';
+import { ExampleJettonMaster, JettonBurn, ProvideWalletAddress } from '../wrappers/JettonExample_ExampleJettonMaster';
 import { ExampleJettonWallet, JettonTransfer } from '../wrappers/JettonExample_ExampleJettonWallet';
 import '@ton-community/test-utils';
+import { JettonMaster } from 'ton';
 
 describe('NFTExample', () => {
     let blockchain: Blockchain;
@@ -214,5 +215,42 @@ describe('NFTExample', () => {
         // Check that Alice's jetton wallet balance is subtracted 1
         const aliceBalanceAfter = (await aliceJettonContract.getGetWalletData()).balance;
         expect(aliceBalanceAfter).toEqual(aliceBalanceBefore - 1n);
+    });
+
+    it("should discover JettonWallet's address", async () => {
+        // Mint 1 token to Alice first to build her jetton wallet
+        await jettonMaster.send(
+            alice.getSender(),
+            {
+                value: toNano('1'),
+            },
+            'Mint:1'
+        );
+
+        // send ProvideWalletAddress to JettonMaster
+        const aliceWalletAddress = await jettonMaster.getGetWalletAddress(alice.address);
+        const aliceJettonContract = blockchain.openContract(await ExampleJettonWallet.fromAddress(aliceWalletAddress));
+
+        const provideWalletAddress: ProvideWalletAddress = {
+            $$type: 'ProvideWalletAddress',
+            query_id: 0n,
+            owner_address: alice.address,
+            include_address: true,
+        };
+
+        // Alice send ProvideWalletAddress msg to JettonMaster
+        const provideWalletAddressResult = await jettonMaster.send(
+            alice.getSender(),
+            {
+                value: toNano('1'),
+            },
+            provideWalletAddress
+        );
+
+        expect(provideWalletAddressResult.transactions).toHaveTransaction({
+            from: alice.address,
+            to: jettonMaster.address,
+            success: true,
+        });
     });
 });
