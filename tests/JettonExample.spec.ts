@@ -1,20 +1,26 @@
-import { Blockchain, SandboxContract, TreasuryContract, printTransactionFees } from '@ton-community/sandbox';
-import { Cell, beginCell, toNano } from 'ton-core';
-import { ExampleNFTCollection, RoyaltyParams } from '../wrappers/NFTExample_ExampleNFTCollection';
-import { ExampleJettonMaster, JettonBurn, ProvideWalletAddress } from '../wrappers/JettonExample_ExampleJettonMaster';
+import {
+    Blockchain,
+    SandboxContract,
+    TreasuryContract,
+    printTransactionFees,
+    prettyLogTransactions,
+} from '@ton/sandbox';
+import { Cell, beginCell, toNano } from '@ton/core';
+import { ExampleJettonMaster, ProvideWalletAddress, JettonBurn } from '../build/JettonExample/tact_ExampleJettonMaster';
 import { ExampleJettonWallet, JettonTransfer } from '../wrappers/JettonExample_ExampleJettonWallet';
-import '@ton-community/test-utils';
-import { JettonMaster } from 'ton';
+import '@ton/test-utils';
+// import { Address, JettonMaster } from 'ton';
 
-describe('NFTExample', () => {
+describe('JettonExample', () => {
     let blockchain: Blockchain;
     let owner: SandboxContract<TreasuryContract>;
     let alice: SandboxContract<TreasuryContract>;
+    let coco: SandboxContract<TreasuryContract>;
     let jettonMaster: SandboxContract<ExampleJettonMaster>;
 
     beforeEach(async () => {
         blockchain = await Blockchain.create();
-        owner = await blockchain.treasury('owner');
+        owner = await blockchain.treasury('fuck');
         alice = await blockchain.treasury('alice');
         const jetton_content: Cell = beginCell().endCell();
         jettonMaster = blockchain.openContract(await ExampleJettonMaster.fromInit(owner.address, jetton_content));
@@ -78,7 +84,7 @@ describe('NFTExample', () => {
         // Check that Alice's jetton wallet balance is 1
         const aliceJettonContract = blockchain.openContract(await ExampleJettonWallet.fromAddress(aliceWalletAddress));
         const aliceBalanceAfter = (await aliceJettonContract.getGetWalletData()).balance;
-        expect(aliceBalanceAfter).toEqual(0n + 1000000000n);
+        expect(aliceBalanceAfter).toEqual(0n + 1000000000000n);
     });
 
     it('should Alice send 1 token to Bob', async () => {
@@ -218,38 +224,36 @@ describe('NFTExample', () => {
     });
 
     it("should discover JettonWallet's address", async () => {
-        // Mint 1 token to Alice first to build her jetton wallet
-        await jettonMaster.send(
-            alice.getSender(),
-            {
-                value: toNano('1'),
-            },
-            'Mint:1'
-        );
-
-        // send ProvideWalletAddress to JettonMaster
-        const aliceWalletAddress = await jettonMaster.getGetWalletAddress(alice.address);
-        const aliceJettonContract = blockchain.openContract(await ExampleJettonWallet.fromAddress(aliceWalletAddress));
+        coco = await blockchain.treasury('coco');
 
         const provideWalletAddress: ProvideWalletAddress = {
             $$type: 'ProvideWalletAddress',
             query_id: 0n,
-            owner_address: alice.address,
+            owner_address: coco.address,
             include_address: true,
         };
 
-        // Alice send ProvideWalletAddress msg to JettonMaster
+        // coco send ProvideWalletAddress msg to JettonMaster
         const provideWalletAddressResult = await jettonMaster.send(
-            alice.getSender(),
+            coco.getSender(),
             {
-                value: toNano('1'),
+                value: toNano('10'),
             },
             provideWalletAddress
         );
 
+        printTransactionFees(provideWalletAddressResult.transactions);
+        prettyLogTransactions(provideWalletAddressResult.transactions);
+
         expect(provideWalletAddressResult.transactions).toHaveTransaction({
-            from: alice.address,
+            from: coco.address,
             to: jettonMaster.address,
+            success: true,
+        });
+
+        expect(provideWalletAddressResult.transactions).toHaveTransaction({
+            from: jettonMaster.address,
+            to: coco.address,
             success: true,
         });
     });
