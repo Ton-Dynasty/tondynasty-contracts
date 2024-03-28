@@ -44,7 +44,7 @@ trait NFTAuctionStandard {
         // Check if auction is still active.
         require(now() < self.auctionEndTime || self.auctionEndTime == 0, "Auction ended");
         require(self.isInitialized == 1, "Contract is not initialized");
-        require(now() < self.auctionBidPeriod | self.auctionBidPeriod ==0, "Auction bid period ended");
+        require(now() < self.auctionBidPeriod | self.auctionBidPeriod == false, "Auction bid period ended");
 
         let ctx: Context = context();
         let buyer: Address = ctx.sender;
