@@ -12,6 +12,7 @@ export async function run(provider: NetworkProvider) {
         description: 'Alankingdom is a decentralized kingdom, where you can create your own kingdom and become a king.',
         symbol: 'ALL',
         decimals: '9',
+        image: 'https://avatars.githubusercontent.com/u/144251015?s=400&u=a25dfca41bdc6467d9783f5225c93f60e1513630&v=4',
     });
     const jettonMaster = provider.open(await ExampleJettonMaster.fromInit(deployer.address!, jettonContent));
     await jettonMaster.send(
