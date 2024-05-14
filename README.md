@@ -1,14 +1,12 @@
-<div style="display: flex; align-items: center; justify-content: center;">
-  <img src="logo.png" alt="Ton Dynasty Logo" height="40px">
-  <h1 style="margin-left: 10px;">Ton Dynasty Contract</h1>
-</div>
+# Ton-Dynasty Contracts
+<a href="https://t.me/permanlab" target="_blank"><img alt="Telegram" src="https://img.shields.io/badge/Telegram-2CA5E0.svg?&style=for-the-badge&logo=telegram&logoColor=white" /></a>
 
-**Ton Dynasty Contract is a library for efficient smart contract development by tact-lang.**
+**Ton Dynasty Contract developed by [Perman Lab](https://t.me/permanlab) is a library for efficient smart contract development by tact-lang.**
 
 - Implementations of standards like [TEP-0062](https://github.com/ton-blockchain/TEPs/blob/master/text/0062-nft-standard.md), [TEP-0074](https://github.com/ton-blockchain/TEPs/blob/master/text/0074-jettons-standard.md)
 - Reusable [traits](https://docs.tact-lang.org/language/guides/types#traits) for common contract types like `Lockable`, `Estimatible`, etc.
 - Provide series of template for ton developers to utilize.
-- Ton Dynasty will always stand by you. Ask for our help in [Ton Dynasty Community](https://t.me/ton_dynasty_community).
+- Perman Lab will always stand by you. Ask for our help in [Perman Lab Community](https://t.me/permanlab).
 
 ## Overview
 
